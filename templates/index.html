@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel 上傳</title>
+</head>
+<body>
+    <h1>上傳 Excel 檔案</h1>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">上傳</button>
+    <pre id="output"></pre>
+
+    <script>
+        function uploadFile() {
+            let file = document.getElementById('fileInput').files[0];
+            if (!file) {
+                alert('請選擇一個檔案！');
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>
