@@ -1,10 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
-import os
 
 app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/')
 def index():
@@ -18,11 +15,7 @@ def upload_file():
     if file.filename == '':
         return jsonify({'error': 'No selected file'})
     if file:
-        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(filepath)
-        
-        # 解析 Excel
-        df = pd.read_excel(filepath)
+        df = pd.read_excel(file)
         data = df.to_dict(orient='records')
         return jsonify({'message': 'File uploaded successfully', 'data': data})
 
