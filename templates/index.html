@@ -3,14 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel 上傳</title>
-</head>
-<body>
-    <h1>上傳 Excel 檔案</h1>
-    <input type="file" id="fileInput">
-    <button onclick="uploadFile()">上傳</button>
-    <pre id="output"></pre>
-
+    <title>Excel 上傳與管理</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         function uploadFile() {
             let file = document.getElementById('fileInput').files[0];
@@ -28,10 +22,157 @@
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    uploadedData = data.data;  // 存儲數據
+                    displayData(uploadedData);
+                }
             })
             .catch(error => console.error('Error:', error));
         }
+        
+        function displayData(data) {
+            let table = document.getElementById('dataTable');
+            table.innerHTML = "";
+    
+            let columnOrder = ["梯次", "姓名", "單位", "原因", "核發與否"];
+    
+            if (data.length === 0) {
+                table.innerHTML = "<tr><td colspan='5'>沒有數據</td></tr>";
+                return;
+            }
+    
+            // 創建表頭
+            let thead = table.createTHead();
+            let row = thead.insertRow();
+            columnOrder.forEach(key => {
+                let th = document.createElement("th");
+                th.textContent = key;
+                row.appendChild(th);
+            });
+    
+            // 創建表身
+            let tbody = table.createTBody();
+            data.forEach(item => {
+                let row = tbody.insertRow();
+                columnOrder.forEach(key => {
+                    let cell = row.insertCell();
+                    cell.textContent = item[key] || "";
+                });
+            });
+    
+            // 顯示匯入按鈕
+            document.getElementById("importButton").style.display = "block";
+        }
+
+        function importData() {
+            if (uploadedData.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '沒有可匯入的數據',
+                    text: '請先上傳 Excel 檔案！'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: '請確認',
+                text: `確定要匯入 ${uploadedData.length} 筆資料至系統嗎？`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: '確定',
+                cancelButtonText: '取消',
+                // reverseButtons: true  // 讓「確定」在左邊
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch('/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: uploadedData })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Swal.fire({
+                            icon: data.error ? 'error' : 'success',
+                            title: data.error ? '匯入失敗' : '匯入成功',
+                            text: data.message
+                        });
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
+            });
+        }
+
+
+        function handleUser(action) {
+            let name = document.getElementById(action + 'Name').value.trim();
+            let batch = document.getElementById(action + 'Batch').value.trim();
+            let unit = document.getElementById(action + 'Unit').value.trim();
+
+            if (!name || !batch || !unit) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '輸入錯誤',
+                    text: '請輸入完整的役男資訊！'
+                });
+                return;
+            }
+
+            let confirmMessage = `確定要${action === 'add' ? '新增' : '刪除'}役男？<br><br><strong>梯次：</strong> ${batch} <br><strong>姓名：</strong> ${name} <br><strong>單位：</strong> ${unit}`;
+
+            Swal.fire({
+                title: '請確認',
+                html: confirmMessage,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: '確定',
+                cancelButtonText: '取消',
+                // reverseButtons: true  // 讓「確定」按鈕在左邊
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/${action}_user`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 姓名: name, 梯次: batch, 單位: unit })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Swal.fire({
+                            icon: data.error ? 'error' : 'success',
+                            title: data.error ? '操作失敗' : '操作成功',
+                            text: data.message
+                        });
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
+            });
+        }
+
     </script>
+</head>
+<body>
+    <h1>夜假上傳與管理役男</h1>
+
+    <h2>上傳 夜假Excel 檔案</h2>
+    <p>Excel欄位: 梯次  姓名  單位  原因  核發與否</p>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">上傳</button>
+
+    <h2>Excel 內容</h2>
+    <table border="1" id="dataTable"></table>
+    <button id="importButton" onclick="importData()" style="display: none;">匯入系統</button>
+
+    <h2>新增役男</h2>
+    <input type="text" id="addName" placeholder="姓名">
+    <input type="text" id="addBatch" placeholder="梯次">
+    <input type="text" id="addUnit" placeholder="單位">
+    <button onclick="handleUser('add')">新增</button>
+
+    <h2>刪除役男</h2>
+    <input type="text" id="deleteName" placeholder="姓名">
+    <input type="text" id="deleteBatch" placeholder="梯次">
+    <input type="text" id="deleteUnit" placeholder="單位">
+    <button onclick="handleUser('delete')">刪除</button>
 </body>
 </html>
