@@ -3,7 +3,7 @@ import pandas as pd
 import gspread
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 
 ABSENCE_SHEET_KEY = "10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI"
