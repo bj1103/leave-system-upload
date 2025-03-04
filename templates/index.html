@@ -163,6 +163,9 @@
     <table border="1" id="dataTable"></table>
     <button id="importButton" onclick="importData()" style="display: none;">匯入系統</button>
 
+    <!-- <h2>夜假紀錄</h2>
+    <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTmOQeHToRr1fmBQ4wdbcFjuZxNq5VZSq0RLnJYVNB5aC_wc-Sn4sxj5benmvcI-rkixEqDA9ke-Z5f/pubhtml?widget=true&amp;headers=false" width="1000" height="500"></iframe> -->
+
     <h2>新增役男</h2>
     <input type="text" id="addName" placeholder="姓名">
     <input type="text" id="addBatch" placeholder="梯次">
@@ -170,9 +173,74 @@
     <button onclick="handleUser('add')">新增</button>
 
     <h2>刪除役男</h2>
-    <input type="text" id="deleteName" placeholder="姓名">
+    <!-- <input type="text" id="deleteName" placeholder="姓名">
     <input type="text" id="deleteBatch" placeholder="梯次">
     <input type="text" id="deleteUnit" placeholder="單位">
-    <button onclick="handleUser('delete')">刪除</button>
+    <button onclick="handleUser('delete')">刪除</button> -->
+    <!-- 刪除役男區塊 -->
+    <label for="deleteUser">選擇役男：</label>
+    <select id="deleteUser"></select>
+    <button onclick="confirmDeleteUser()">刪除</button>
+
+    <script>
+        // 獲取所有 Google Sheets tab 並填入下拉選單
+        function loadUsers() {
+            fetch('/get_users')
+                .then(response => response.json())
+                .then(data => {
+                    let select = document.getElementById("deleteUser");
+                    select.innerHTML = "";  // 清空選項
+                    data.users.forEach(user => {
+                        let option = document.createElement("option");
+                        option.value = user;
+                        option.textContent = user;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => console.error("Error:", error));
+        }
+
+        // 確認刪除
+        function confirmDeleteUser() {
+            let selectedUser = document.getElementById("deleteUser").value;
+            if (!selectedUser) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '請選擇要刪除的役男'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: '請確認',
+                text: `確定要刪除 ${selectedUser} 嗎？`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '確定',
+                cancelButtonText: '取消',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch('/delete_user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tab_name: selectedUser })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Swal.fire({
+                            icon: data.error ? 'error' : 'success',
+                            title: data.error ? '刪除失敗' : '刪除成功',
+                            text: data.message
+                        });
+                        loadUsers();  // 重新載入下拉選單
+                    })
+                    .catch(error => console.error("Error:", error));
+                }
+            });
+        }
+
+        // 頁面加載時載入役男列表
+        window.onload = loadUsers;
+    </script>
 </body>
 </html>

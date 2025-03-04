@@ -65,6 +65,15 @@ def import_data():
     # except Exception as e:
     #     return jsonify({'error': str(e)})
 
+@app.route('/get_users', methods=['GET'])
+def get_users():
+    try:
+        sh = gc.open_by_key(ABSENCE_SHEET_KEY)
+        sheets = sh.worksheets()
+        sheet_names = [sheet.title for sheet in sheets if "T" in sheet.title]  # 只抓有 "T" 的 tab
+        return jsonify({'users': sheet_names})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
@@ -100,12 +109,12 @@ def add_user():
 @app.route('/delete_user', methods=['POST'])
 def delete_user():
     data = request.json
-    name, batch, unit = data.get('姓名'), data.get('梯次'), data.get('單位')
+    tab_name = data.get('tab_name')
 
-    if not name or not batch or not unit:
-        return jsonify({'error': '缺少必要欄位'}), 400
+    if not tab_name:
+        return jsonify({'error': '請選擇要刪除的役男'}), 400
 
-    tab_name = f"{batch}T{name}"  # 要刪除的工作表名稱
+    batch, name = tab_name.split("T")
 
     try:
         sh = gc.open_by_key(ABSENCE_SHEET_KEY)
