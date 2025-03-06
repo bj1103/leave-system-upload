@@ -202,21 +202,24 @@ def get_absence_records():
         return jsonify({"error": "找不到該役男的請假紀錄"})
 
 def update_absence_record(worksheet, date, reason):
-        idx = 0
-        for record in worksheet.get_all_records():
-            if len(record["請假日期"]) != 0:
-                idx += 1
-            else:
-                break
+    length = 0
+    for record in worksheet.get_all_records():
+        if len(record["請假日期"]) != 0:
+            length += 1
+        else:
+            break
 
-        data = worksheet.get(f"A2:B{idx+1}")
-        data.append([
-            date,
-            reason 
-        ])
-        sorted_data = sorted(
-            data, key=lambda row: datetime.strptime(row[0], '%Y/%m/%d'))
-        worksheet.update(f"A2:B{idx+2}", sorted_data)
+    if length == 0:
+        data = []
+    else:
+        data = worksheet.get(f"A2:B{length+1}")
+    data.append([
+        date,
+        reason 
+    ])
+    sorted_data = sorted(
+        data, key=lambda row: datetime.strptime(row[0], '%Y/%m/%d'))
+    worksheet.update(f"A2:B{length+2}", sorted_data)
 
 def get_night_timeoff_amount(worksheet):
     available_night_timeoff = []
@@ -232,8 +235,10 @@ def update_nigth_timeoff_sheet(worksheet, date):
             length += 1
         else:
             break
-
-    data = worksheet.get(f"D2:D{length+1}")
+    if length == 0:
+        data = []
+    else:
+        data = worksheet.get(f"D2:D{length+1}")
     data.append([
         date
     ])
