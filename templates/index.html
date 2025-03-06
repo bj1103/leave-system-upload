@@ -1,246 +1,110 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel 上傳與管理</title>
+    <title>役男管理系統</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        function uploadFile() {
-            let file = document.getElementById('fileInput').files[0];
-            if (!file) {
-                alert('請選擇一個檔案！');
-                return;
-            }
-
-            let formData = new FormData();
-            formData.append('file', file);
-
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    uploadedData = data.data;  // 存儲數據
-                    displayData(uploadedData);
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        }
-        
-        function displayData(data) {
-            let table = document.getElementById('dataTable');
-            table.innerHTML = "";
-    
-            let columnOrder = ["梯次", "姓名", "單位", "原因", "核發與否"];
-    
-            if (data.length === 0) {
-                table.innerHTML = "<tr><td colspan='5'>沒有數據</td></tr>";
-                return;
-            }
-    
-            // 創建表頭
-            let thead = table.createTHead();
-            let row = thead.insertRow();
-            columnOrder.forEach(key => {
-                let th = document.createElement("th");
-                th.textContent = key;
-                row.appendChild(th);
-            });
-    
-            // 創建表身
-            let tbody = table.createTBody();
-            data.forEach(item => {
-                let row = tbody.insertRow();
-                columnOrder.forEach(key => {
-                    let cell = row.insertCell();
-                    cell.textContent = item[key] || "";
-                });
-            });
-    
-            // 顯示匯入按鈕
-            document.getElementById("importButton").style.display = "block";
-        }
-
-        function importData() {
-            if (uploadedData.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: '沒有可匯入的數據',
-                    text: '請先上傳 Excel 檔案！'
-                });
-                return;
-            }
-
-            Swal.fire({
-                title: '請確認',
-                text: `確定要匯入 ${uploadedData.length} 筆資料至系統嗎？`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: '確定',
-                cancelButtonText: '取消',
-                // reverseButtons: true  // 讓「確定」在左邊
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    fetch('/import', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ data: uploadedData })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        Swal.fire({
-                            icon: data.error ? 'error' : 'success',
-                            title: data.error ? '匯入失敗' : '匯入成功',
-                            text: data.message
-                        });
-                    })
-                    .catch(error => console.error('Error:', error));
-                }
-            });
-        }
-
-
-        function handleUser(action) {
-            let name = document.getElementById(action + 'Name').value.trim();
-            let batch = document.getElementById(action + 'Batch').value.trim();
-            let unit = document.getElementById(action + 'Unit').value.trim();
-
-            if (!name || !batch || !unit) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: '輸入錯誤',
-                    text: '請輸入完整的役男資訊！'
-                });
-                return;
-            }
-
-            let confirmMessage = `確定要${action === 'add' ? '新增' : '刪除'}役男？<br><br><strong>梯次：</strong> ${batch} <br><strong>姓名：</strong> ${name} <br><strong>單位：</strong> ${unit}`;
-
-            Swal.fire({
-                title: '請確認',
-                html: confirmMessage,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: '確定',
-                cancelButtonText: '取消',
-                // reverseButtons: true  // 讓「確定」按鈕在左邊
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    fetch(`/${action}_user`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 姓名: name, 梯次: batch, 單位: unit })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        Swal.fire({
-                            icon: data.error ? 'error' : 'success',
-                            title: data.error ? '操作失敗' : '操作成功',
-                            text: data.message
-                        });
-                    })
-                    .catch(error => console.error('Error:', error));
-                }
-            });
-        }
-
-    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>夜假上傳與管理役男</h1>
+    <!-- 功能選單 -->
+    <div class="tab-menu">
+        <button class="tab-button active" onclick="switchTab('leave')">發放夜假</button>
+        <button class="tab-button" onclick="switchTab('manage')">新增與刪除役男</button>
+        <button class="tab-button" onclick="switchTab('records')">查看役男夜假</button>
+        <button class="tab-button" onclick="switchTab('absences')">修改役男請假紀錄</button>
+        <button class="tab-button" onclick="switchTab('manual')">使用教學</button>
+    </div>
 
-    <h2>上傳 夜假Excel 檔案</h2>
-    <p>Excel欄位: 梯次  姓名  單位  原因  核發與否</p>
-    <input type="file" id="fileInput">
-    <button onclick="uploadFile()">上傳</button>
+    <!-- 發放夜假區塊 -->
+    <div id="leave" class="tab-content active">
+        <h2>發放夜假</h2>
+        <h3>上傳夜假</h3>
+        <p>Excel欄位: 梯次  姓名  單位  原因  核發與否</p>
+        <input type="file" id="fileInput">
+        <button onclick="uploadFile()">上傳</button>
 
-    <h2>Excel 內容</h2>
-    <table border="1" id="dataTable"></table>
-    <button id="importButton" onclick="importData()" style="display: none;">匯入系統</button>
+        <h3>Excel 內容</h3>
+        <table border="1" id="dataTable"></table>
+        <button id="importButton" onclick="importData()" style="display: none;">匯入系統</button>
 
-    <!-- <h2>夜假紀錄</h2>
-    <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTmOQeHToRr1fmBQ4wdbcFjuZxNq5VZSq0RLnJYVNB5aC_wc-Sn4sxj5benmvcI-rkixEqDA9ke-Z5f/pubhtml?widget=true&amp;headers=false" width="1000" height="500"></iframe> -->
+    </div>
 
-    <h2>新增役男</h2>
-    <input type="text" id="addName" placeholder="姓名">
-    <input type="text" id="addBatch" placeholder="梯次">
-    <input type="text" id="addUnit" placeholder="單位">
-    <button onclick="handleUser('add')">新增</button>
+    <!-- 新增與刪除役男區塊 -->
+    <div id="manage" class="tab-content">
+        <h2>新增與刪除役男</h2>
 
-    <h2>刪除役男</h2>
-    <!-- <input type="text" id="deleteName" placeholder="姓名">
-    <input type="text" id="deleteBatch" placeholder="梯次">
-    <input type="text" id="deleteUnit" placeholder="單位">
-    <button onclick="handleUser('delete')">刪除</button> -->
-    <!-- 刪除役男區塊 -->
-    <label for="deleteUser">選擇役男：</label>
-    <select id="deleteUser"></select>
-    <button onclick="confirmDeleteUser()">刪除</button>
+        <!-- 新增役男 -->
+        <h3>新增役男</h3>
+        <label>姓名：<input type="text" id="add_name"></label>
+        <label>梯次：<input type="text" id="add_batch"></label>
+        <label>單位：<input type="text" id="add_unit"></label>
+        <button onclick="confirmAddUser()">新增</button>
 
-    <script>
-        // 獲取所有 Google Sheets tab 並填入下拉選單
-        function loadUsers() {
-            fetch('/get_users')
-                .then(response => response.json())
-                .then(data => {
-                    let select = document.getElementById("deleteUser");
-                    select.innerHTML = "";  // 清空選項
-                    data.users.forEach(user => {
-                        let option = document.createElement("option");
-                        option.value = user;
-                        option.textContent = user;
-                        select.appendChild(option);
-                    });
-                })
-                .catch(error => console.error("Error:", error));
-        }
+        <!-- 刪除役男 -->
+        <h3>刪除役男</h3>
+        <label for="deleteUser">選擇役男：</label>
+        <select id="deleteUser"></select>
+        <button onclick="confirmDeleteUser()">刪除</button>
+    </div>
 
-        // 確認刪除
-        function confirmDeleteUser() {
-            let selectedUser = document.getElementById("deleteUser").value;
-            if (!selectedUser) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: '請選擇要刪除的役男'
-                });
-                return;
-            }
+    <!-- 查看夜假區塊 -->
+    <div id="records" class="tab-content">
+        <h2>查看役男夜假</h2>
+        <label for="leaveRecords">選擇役男：</label>
+        <select id="leaveRecords"></select>
+        <button onclick="fetchLeaveRecords()">查詢</button>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>核發原因</th>
+                    <th>核發日期</th>
+                    <th>有效期限</th>
+                    <th>使用日期</th>
+                </tr>
+            </thead>
+            <tbody id="recordsTableBody"></tbody>
+        </table>
+    </div>
 
-            Swal.fire({
-                title: '請確認',
-                text: `確定要刪除 ${selectedUser} 嗎？`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: '確定',
-                cancelButtonText: '取消',
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    fetch('/delete_user', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tab_name: selectedUser })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        Swal.fire({
-                            icon: data.error ? 'error' : 'success',
-                            title: data.error ? '刪除失敗' : '刪除成功',
-                            text: data.message
-                        });
-                        loadUsers();  // 重新載入下拉選單
-                    })
-                    .catch(error => console.error("Error:", error));
-                }
-            });
-        }
+    <!-- 查看請假紀錄區塊 -->
+    <div id="absences" class="tab-content">
+        <h2>修改役男請假紀錄</h2>
+        <label for="absenceRecords">選擇役男：</label>
+        <select id="absenceRecords"></select>
+        <button onclick="fetchAbsenceRecords()">查詢</button>
+        <h3>刪除請假紀錄</h3>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>假別</th>
+                    <th>操作</th> <!-- 新增刪除按鈕 -->
+                </tr>
+            </thead>
+            <tbody id="absencesTableBody"></tbody>
+        </table>
 
-        // 頁面加載時載入役男列表
-        window.onload = loadUsers;
-    </script>
+        <!-- 新增請假紀錄區塊 -->
+        <h3>新增請假紀錄</h3>
+        <label>日期：<input type="date" id="new_issue_date"></label>
+        <label>假別：
+            <select id="new_reason">
+                <option value="夜假">夜假</option>
+                <option value="隔天補休">隔天補休</option>
+                <option value="公差">公差</option>
+                <option value="其他">其他</option>
+            </select>
+        </label>
+        <button onclick="addAbsenceRecord()">新增</button>
+    </div>
+
+
+    <div id="manual" class="tab-content">
+        <h2>使用教學</h2>
+        <p>（此處可加入使用教學）</p>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
