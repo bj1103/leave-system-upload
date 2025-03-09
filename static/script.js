@@ -12,6 +12,9 @@ function switchTab(tabId) {
     // 顯示選擇的內容，並設定按鈕 active
     document.getElementById(tabId).classList.add('active');
     event.target.classList.add('active');
+    if (tabId === "records") {
+        fetchSummary();
+    }
 }
 
 function uploadFile() {
@@ -227,12 +230,33 @@ function confirmDeleteUser() {
     });
 }
 
+// fetch night timeoff summary
+function fetchSummary() {
+    fetch(`/get_tab_records?tab_name=夜假統計`)
+        .then(response => response.json())
+        .then(data => {
+            let tableBody = document.getElementById("summaryTableBody");
+            tableBody.innerHTML = "";  // 清空表格內容
+
+            data.records.forEach(row => {
+                let tr = document.createElement("tr");
+                row.forEach(cell => {
+                    let td = document.createElement("td");
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+        })
+        .catch(error => console.error("Error:", error));
+}
+
 // 查詢請假紀錄
 function fetchLeaveRecords() {
     let selectedUser = document.getElementById("leaveRecords").value;
     if (!selectedUser) return;
 
-    fetch(`/get_leave_records?tab_name=${selectedUser}`)
+    fetch(`/get_tab_records?tab_name=${selectedUser}`)
         .then(response => response.json())
         .then(data => {
             let tableBody = document.getElementById("recordsTableBody");

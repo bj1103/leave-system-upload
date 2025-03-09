@@ -9,10 +9,12 @@
     cursor: pointer;
     border: none;
     background-color: lightgray;
+    font-size: 24px
 }
 .tab-button.active {
     background-color: gray;
     color: white;
+    font-size: 24px
 }
 .tab-content {
     display: none;

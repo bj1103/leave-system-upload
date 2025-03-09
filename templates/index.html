@@ -19,13 +19,13 @@
 
     <!-- 發放夜假區塊 -->
     <div id="leave" class="tab-content active">
-        <h2>發放夜假</h2>
-        <h3>上傳夜假</h3>
+        <h1>發放夜假</h1>
+        <h2>上傳夜假</h2>
         <p>Excel欄位: 梯次  姓名  單位  原因  核發與否</p>
         <input type="file" id="fileInput">
         <button onclick="uploadFile()">上傳</button>
 
-        <h3>Excel 內容</h3>
+        <h2>Excel 內容</h2>
         <table border="1" id="dataTable"></table>
         <button id="importButton" onclick="importData()" style="display: none;">匯入系統</button>
 
@@ -33,17 +33,17 @@
 
     <!-- 新增與刪除役男區塊 -->
     <div id="manage" class="tab-content">
-        <h2>新增與刪除役男</h2>
+        <h1>新增與刪除役男</h1>
 
         <!-- 新增役男 -->
-        <h3>新增役男</h3>
+        <h2>新增役男</h2>
         <label>姓名：<input type="text" id="add_name"></label>
         <label>梯次：<input type="text" id="add_batch"></label>
         <label>單位：<input type="text" id="add_unit"></label>
         <button onclick="confirmAddUser()">新增</button>
 
         <!-- 刪除役男 -->
-        <h3>刪除役男</h3>
+        <h2>刪除役男</h2>
         <label for="deleteUser">選擇役男：</label>
         <select id="deleteUser"></select>
         <button onclick="confirmDeleteUser()">刪除</button>
@@ -51,7 +51,23 @@
 
     <!-- 查看夜假區塊 -->
     <div id="records" class="tab-content">
-        <h2>查看役男夜假</h2>
+        <h1>役男夜假統計</h1>
+        <p><a href="https://docs.google.com/spreadsheets/d/10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI/edit?pli=1&gid=848398097#gid=848398097">原始資料</a></p>
+        <table border="1">
+            <thead>				
+                <tr>
+                    <th>梯次</th>
+                    <th>單位</th>
+                    <th>姓名</th>
+                    <th>總夜假數</th>
+                    <th>已使用的夜假數</th>
+                    <th>已過期的夜假數</th>
+                </tr>
+            </thead>
+            <tbody id="summaryTableBody"></tbody>
+        </table>
+
+        <h1>查看個別役男夜假</h1>
         <label for="leaveRecords">選擇役男：</label>
         <select id="leaveRecords"></select>
         <button onclick="fetchLeaveRecords()">查詢</button>
@@ -70,11 +86,12 @@
 
     <!-- 查看請假紀錄區塊 -->
     <div id="absences" class="tab-content">
-        <h2>修改役男請假紀錄</h2>
+        <h1>修改役男請假紀錄</h1>
+        <p><a href="https://docs.google.com/spreadsheets/d/1TxClL3L0pDQAIoIidgJh7SP-BF4GaBD6KKfVKw0CLZQ/edit?gid=1832299960#gid=1832299960">原始資料</a></p>
         <label for="absenceRecords">選擇役男：</label>
         <select id="absenceRecords"></select>
         <button onclick="fetchAbsenceRecords()">查詢</button>
-        <h3>刪除請假紀錄</h3>
+        <h2>刪除請假紀錄</h2>
         <table border="1">
             <thead>
                 <tr>
@@ -87,7 +104,7 @@
         </table>
 
         <!-- 新增請假紀錄區塊 -->
-        <h3>新增請假紀錄</h3>
+        <h2>新增請假紀錄</h2>
         <label>日期：<input type="date" id="new_issue_date"></label>
         <label>假別：
             <select id="new_reason">
@@ -102,7 +119,7 @@
 
 
     <div id="manual" class="tab-content">
-        <h2>使用教學</h2>
+        <h1>使用教學</h1>
         <p>（此處可加入使用教學）</p>
     </div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>

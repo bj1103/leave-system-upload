@@ -176,15 +176,15 @@ def delete_user():
 
 
 # 獲取夜假紀錄
-@app.route("/get_leave_records")
+@app.route("/get_tab_records")
 def get_leave_records():
     tab_name = request.args.get("tab_name")
     sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
     try:
         sheet = sh.worksheet(tab_name)
         all_records = sheet.get_all_values()[1:]  # 排除第一行標題
-        filtered_records = [row[:4] for row in all_records]
-        return jsonify({"records": filtered_records})
+        # filtered_records = [row[:4] for row in all_records]
+        return jsonify({"records": all_records})
     except gspread.exceptions.WorksheetNotFound:
         return jsonify({"error": "找不到該役男的夜假紀錄"})
 
