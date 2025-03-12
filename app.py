@@ -5,6 +5,8 @@ import json
 import os
 from datetime import datetime
 import pytz
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
 
 NIGHT_TIMEOFF_SHEET_KEY = "10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI"
 ABSENCE_RECORD_SHEET_KEY = "1TxClL3L0pDQAIoIidgJh7SP-BF4GaBD6KKfVKw0CLZQ"
@@ -13,6 +15,14 @@ service_account_info['private_key'] = service_account_info[
     'private_key'].replace("\\n", "\n")
 gc = gspread.service_account_from_dict(service_account_info)
 taipei_timezone = pytz.timezone('Asia/Taipei')
+
+SCOPES = ["https://www.googleapis.com/auth/drive"]
+
+credentials = service_account.Credentials.from_service_account_info(
+    service_account_info, scopes=SCOPES
+)
+drive_service = build("drive", "v3", credentials=credentials)
+PARENT_FOLDER_ID = os.getenv("FOLDER_ID")
 
 app = Flask(__name__)
 
@@ -84,6 +94,53 @@ def get_users():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def create_folder(parent_folder_id, folder_name):
+    """Creates a folder with the given name inside the specified parent folder."""
+    file_metadata = {
+        "name": folder_name,
+        "mimeType": "application/vnd.google-apps.folder",
+        "parents": [parent_folder_id]
+    }
+    folder = drive_service.files().create(body=file_metadata, fields="id").execute()
+    print(f"✅ Folder '{folder_name}' created with ID: {folder['id']}")
+    return folder["id"]
+
+def get_folder_id(parent_folder_id, folder_name):
+    """Finds the folder ID by its name inside a given parent folder."""
+    query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and trashed=false"
+    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    folders = results.get("files", [])
+
+    if not folders:
+        print(f"Folder '{folder_name}' not found in the specified parent folder.")
+        return None
+    return folders[0]["id"]  # Assuming folder names are unique
+
+def delete_all_files_in_folder(folder_id):
+    """Deletes all files and subfolders inside a given folder."""
+    query = f"'{folder_id}' in parents and trashed=false"
+    results = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
+    files = results.get("files", [])
+
+    if not files:
+        print(f"Folder is empty. Proceeding to delete it.")
+    else:
+        print(f"Deleting {len(files)} items in folder...")
+
+    for file in files:
+        print(f"Deleting: {file['name']} (ID: {file['id']})")
+        drive_service.files().delete(fileId=file["id"]).execute()
+
+def delete_folder_and_contents(parent_folder_id, folder_name):
+    """Deletes a folder along with all its contents."""
+    folder_id = get_folder_id(parent_folder_id, folder_name)
+    if folder_id:
+        delete_all_files_in_folder(folder_id)  # Delete all files inside first
+        drive_service.files().delete(fileId=folder_id).execute()  # Then delete the folder itself
+        print(f"Folder '{folder_name}' and all its contents have been deleted.")
+    else:
+        print(f"Folder '{folder_name}' does not exist and cannot be deleted.")
+
 
 @app.route('/add_user', methods=['POST'])
 def add_user():
@@ -116,10 +173,12 @@ def add_user():
         if tab_name in existing_sheets:
             return jsonify({'error': f'工作表 "{tab_name}" 已存在'}), 400
 
-        worksheet = sh.add_worksheet(title=tab_name, rows="1000", cols="2")
+        worksheet = sh.add_worksheet(title=tab_name, rows="1000", cols="3")
 
-        headers = ["請假日期", "假別"]
+        headers = ["請假日期", "假別", "已上傳證明"]
         worksheet.insert_row(headers, 1)
+
+        create_folder(PARENT_FOLDER_ID, tab_name)
 
         return jsonify({'message': f'成功新增役男: "{tab_name}"'})
 
@@ -168,6 +227,8 @@ def delete_user():
         # 反向刪除，避免索引錯誤
         for row_index in reversed(rows_to_delete):
             night_leave_sheet.delete_rows(row_index)
+
+        delete_folder_and_contents(PARENT_FOLDER_ID, tab_name)
 
         return jsonify({'message': f'成功刪除役男: "{tab_name}"'})
 
@@ -323,6 +384,45 @@ def delete_absence_record():
         print("Error:", e)
         return jsonify({"success": False, "error": str(e)})
 
+
+@app.route("/search_drive_files", methods=["POST"])
+def search_drive_files():
+    data = request.json
+    name = data.get("name")
+    if not name:
+        return jsonify({"error": "請輸入姓名"}), 400
+
+    try:
+        # 先找出與該名字相符的子資料夾
+        query = f"'{PARENT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and name = '{name}'"
+        response = drive_service.files().list(q=query, fields="files(id, name)").execute()
+        folders = response.get("files", [])
+
+        if not folders:
+            return jsonify({"files": []})  # 找不到資料夾
+
+        folder_id = folders[0]["id"]  # 取得該名字對應的子資料夾 ID
+
+        # 搜尋該資料夾內的所有檔案
+        file_query = f"'{folder_id}' in parents"
+        file_response = drive_service.files().list(q=file_query, fields="files(id, name)").execute()
+        files = file_response.get("files", [])
+
+        file_list = []
+        for file in files:
+            file_id = file["id"]
+            file_name = file["name"]
+            date_and_type = file_name.split(".")[0].split("_")
+            view_link = f"https://drive.google.com/file/d/{file_id}/view"
+
+            file_list.append({"name": date_and_type[0], "type": date_and_type[1], "view_link": view_link})
+
+        file_list.sort(key=lambda x: datetime.strptime(x["name"], '%Y-%m-%d'))
+        return jsonify({"files": file_list})
+
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -14,6 +14,7 @@
         <button class="tab-button" onclick="switchTab('manage')">新增與刪除役男</button>
         <button class="tab-button" onclick="switchTab('records')">查看役男夜假</button>
         <button class="tab-button" onclick="switchTab('absences')">修改役男請假紀錄</button>
+        <button class="tab-button" onclick="switchTab('proof')">查看補休及公差證明</button>
         <button class="tab-button" onclick="switchTab('manual')">使用教學</button>
     </div>
 
@@ -97,6 +98,7 @@
                 <tr>
                     <th>日期</th>
                     <th>假別</th>
+                    <th>已上傳證明</th>
                     <th>操作</th> <!-- 新增刪除按鈕 -->
                 </tr>
             </thead>
@@ -116,7 +118,23 @@
         </label>
         <button onclick="addAbsenceRecord()">新增</button>
     </div>
-
+    <div id="proof" class="tab-content">
+        <p><a href="https://drive.google.com/drive/folders/19SIRo8MgecEsgpf63MZoytfKjSNgPLLd?usp=sharing">雲端硬碟</a></p>
+        <h1>查看役男補休及公差證明</h1>
+        <label for="leaveProofs">選擇役男：</label>
+        <select id="leaveProofs"></select>
+        <button onclick="fetchLeaveProofs()">查看</button>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>假別</th>
+                    <th>圖片連結</th>
+                </tr>
+            </thead>
+            <tbody id="driveFilesTable"></tbody>
+        </table>
+    </div>
 
     <div id="manual" class="tab-content">
         <h1>使用教學</h1>

@@ -123,11 +123,12 @@ function loadUsers() {
             let deleteSelect = document.getElementById("deleteUser");
             let leaveSelect = document.getElementById("leaveRecords");
             let absenceSelect = document.getElementById("absenceRecords");
-
+            let proofSelect = document.getElementById("leaveProofs")
 
             deleteSelect.innerHTML = "";
             leaveSelect.innerHTML = "";
             absenceSelect.innerHTML = ""
+            proofSelect.innerHTML = ""
 
             data.users.forEach(user => {
                 let option1 = document.createElement("option");
@@ -144,6 +145,11 @@ function loadUsers() {
                 option3.value = user;
                 option3.textContent = user;
                 absenceSelect.appendChild(option3);
+
+                let option4 = document.createElement("option");
+                option4.value = user;
+                option4.textContent = user;
+                proofSelect.appendChild(option4);
             });
         })
         .catch(error => console.error("Error:", error));
@@ -402,6 +408,55 @@ function deleteAbsenceRecord(rowData, rowIndex) {
         }
     });
 }
+
+// 查詢 Google Drive 內的檔案
+function fetchLeaveProofs() {
+    let name = document.getElementById("leaveProofs").value;
+    if (!name) {
+        Swal.fire("錯誤", "請輸入要查詢的姓名", "error");
+        return;
+    }
+
+    fetch('/search_drive_files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    })
+    .then(response => response.json())
+    .then(data => {
+        let tableBody = document.getElementById("driveFilesTable");
+        tableBody.innerHTML = ""; // 清空舊資料
+
+        if (data.files.length === 0) {
+            Swal.fire("查無資料", "該姓名對應的資料夾內沒有檔案", "info");
+            return;
+        }
+
+        data.files.forEach(file => {
+            let tr = document.createElement("tr");
+
+            let fileDateTd = document.createElement("td");
+            fileDateTd.textContent = file.name;
+            tr.appendChild(fileDateTd);
+
+            let fileTypeTd = document.createElement("td");
+            fileTypeTd.textContent = file.type;
+            tr.appendChild(fileTypeTd);
+
+            let fileLinkTd = document.createElement("td");
+            let link = document.createElement("a");
+            link.href = file.view_link;
+            link.textContent = "查看";
+            link.target = "_blank";
+            fileLinkTd.appendChild(link);
+            tr.appendChild(fileLinkTd);
+
+            tableBody.appendChild(tr);
+        });
+    })
+    .catch(error => console.error("Error:", error));
+}
+
 
 // 頁面加載時載入役男列表
 window.onload = loadUsers;
