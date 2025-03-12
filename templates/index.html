@@ -98,7 +98,6 @@
                 <tr>
                     <th>日期</th>
                     <th>假別</th>
-                    <th>已上傳證明</th>
                     <th>操作</th> <!-- 新增刪除按鈕 -->
                 </tr>
             </thead>
@@ -123,17 +122,8 @@
         <h1>查看役男補休及公差證明</h1>
         <label for="leaveProofs">選擇役男：</label>
         <select id="leaveProofs"></select>
-        <button onclick="fetchLeaveProofs()">查看</button>
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>日期</th>
-                    <th>假別</th>
-                    <th>圖片連結</th>
-                </tr>
-            </thead>
-            <tbody id="driveFilesTable"></tbody>
-        </table>
+        <button onclick="getGoogleDrive()">查看</button>
+        <div id="searchResult"></div>
     </div>
 
     <div id="manual" class="tab-content">

@@ -173,9 +173,9 @@ def add_user():
         if tab_name in existing_sheets:
             return jsonify({'error': f'工作表 "{tab_name}" 已存在'}), 400
 
-        worksheet = sh.add_worksheet(title=tab_name, rows="1000", cols="3")
+        worksheet = sh.add_worksheet(title=tab_name, rows="1000", cols="2")
 
-        headers = ["請假日期", "假別", "已上傳證明"]
+        headers = ["請假日期", "假別"]
         worksheet.insert_row(headers, 1)
 
         create_folder(PARENT_FOLDER_ID, tab_name)
@@ -380,6 +380,31 @@ def delete_absence_record():
             night_timeoff_worksheet.update(f"D2:D{length+1}", data)
 
         return jsonify({"success": True})
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/get_google_drive")
+def get_google_drive():
+    folder_name = request.args.get("folder_name")
+    
+    if not folder_name:
+        return jsonify({"success": False, "error": "未輸入名稱"})
+
+    try:
+        # 在 Google Drive 的主資料夾內搜尋子資料夾
+        query = f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and '{PARENT_FOLDER_ID}' in parents"
+        results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+        folders = results.get("files", [])
+
+        if folders:
+            folder_id = folders[0]["id"]
+            folder_link = f"https://drive.google.com/drive/folders/{folder_id}"
+            return jsonify({"success": True, "folder_link": folder_link})
+        else:
+            return jsonify({"success": False, "error": "找不到對應的資料夾"})
+
     except Exception as e:
         print("Error:", e)
         return jsonify({"success": False, "error": str(e)})

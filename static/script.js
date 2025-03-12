@@ -409,6 +409,27 @@ function deleteAbsenceRecord(rowData, rowIndex) {
     });
 }
 
+
+// 查找 Google Drive 資料夾
+function getGoogleDrive() {
+    let folderName = document.getElementById("leaveProofs").value;
+    if (!folderName) {
+        Swal.fire("錯誤", "請輸入名字", "error");
+        return;
+    }
+
+    fetch(`/get_google_drive?folder_name=${folderName}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.open(data.folder_link, "_blank"); // 🔹 在新分頁打開 Google Drive 連結
+            } else {
+                Swal.fire("未找到", "沒有找到對應的資料夾", "warning");
+            }
+        })
+        .catch(error => console.error("Error:", error));
+}
+
 // 查詢 Google Drive 內的檔案
 function fetchLeaveProofs() {
     let name = document.getElementById("leaveProofs").value;
