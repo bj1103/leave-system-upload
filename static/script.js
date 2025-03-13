@@ -15,6 +15,10 @@ function switchTab(tabId) {
     if (tabId === "records") {
         fetchSummary();
     }
+
+    if (tabId === "manual") {
+        loadMarkdown();
+    }
 }
 
 function uploadFile() {
@@ -505,6 +509,15 @@ function fetchLeaveProofs() {
     .catch(error => console.error("Error:", error));
 }
 
+async function loadMarkdown() {
+    const response = await fetch("/static/manual.md"); // 請確保 `example.md` 在同一目錄下
+    const markdownText = await response.text();
+    marked.setOptions({
+        breaks: true,  // 允許換行符號生效
+        gfm: true      // 啟用 GitHub Flavored Markdown (GFM) ，它支援 table 語法
+    });
+    document.getElementById("markdown-content").innerHTML = marked.parse(markdownText);
+}
 
 // 頁面加載時載入役男列表
 window.onload = loadUsers;

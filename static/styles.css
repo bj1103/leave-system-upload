@@ -22,3 +22,19 @@
 .tab-content.active {
     display: block;
 }
+
+#markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#markdown-content th, #markdown-content td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+#markdown-content th {
+    background-color: #f2f2f2;
+    text-align: left;
+}

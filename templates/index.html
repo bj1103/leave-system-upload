@@ -5,16 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>役男管理系統</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <!-- 功能選單 -->
     <div class="tab-menu">
         <button class="tab-button active" onclick="switchTab('leave')">發放夜假</button>
-        <button class="tab-button" onclick="switchTab('manage')">新增與刪除役男</button>
         <button class="tab-button" onclick="switchTab('records')">查看夜假</button>
         <button class="tab-button" onclick="switchTab('absences')">查看請假紀錄</button>
         <button class="tab-button" onclick="switchTab('proof')">查看請假證明</button>
+        <button class="tab-button" onclick="switchTab('manage')">新增與刪除役男</button>
         <button class="tab-button" onclick="switchTab('manual')">使用教學</button>
     </div>
 
@@ -52,7 +53,7 @@
 
     <!-- 查看夜假區塊 -->
     <div id="records" class="tab-content">
-        <h1>役男夜假統計</h1>
+        <h1>夜假統計</h1>
         <p><a href="https://docs.google.com/spreadsheets/d/10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI/edit?pli=1&gid=848398097#gid=848398097">原始資料</a></p>
         <table border="1">
             <thead>				
@@ -68,7 +69,7 @@
             <tbody id="summaryTableBody"></tbody>
         </table>
 
-        <h1>修改役男夜假</h1>
+        <h1>查看與刪除夜假</h1>
         <p><a href="https://docs.google.com/spreadsheets/d/10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI/edit?pli=1&gid=1528858576#gid=1528858576">原始資料</a></p>
         <label for="leaveRecords">選擇役男：</label>
         <select id="leaveRecords"></select>
@@ -89,11 +90,12 @@
 
     <!-- 查看請假紀錄區塊 -->
     <div id="absences" class="tab-content">
-        <h1>修改役男請假紀錄</h1>
+        <h1>查看與修改請假紀錄</h1>
         <p><a href="https://docs.google.com/spreadsheets/d/1TxClL3L0pDQAIoIidgJh7SP-BF4GaBD6KKfVKw0CLZQ/edit?gid=1832299960#gid=1832299960">原始資料</a></p>
         <label for="absenceRecords">選擇役男：</label>
         <select id="absenceRecords"></select>
         <button onclick="fetchAbsenceRecords()">查詢</button>
+        <h3>查看與刪除請假紀錄</h3>
         <table border="1">
             <thead>
                 <tr>
@@ -106,7 +108,7 @@
         </table>
 
         <!-- 新增請假紀錄區塊 -->
-        <h2>新增請假紀錄</h2>
+        <h3>新增請假紀錄</h3>
         <label>日期：<input type="date" id="new_issue_date"></label>
         <label>假別：
             <input list="options" id="new_reason" name=new_reason>
@@ -129,8 +131,7 @@
     </div>
 
     <div id="manual" class="tab-content">
-        <h1>使用教學</h1>
-        <p>（此處可加入使用教學）</p>
+        <div id="markdown-content">載入中...</div>
     </div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
