@@ -257,7 +257,7 @@ function fetchSummary() {
         .catch(error => console.error("Error:", error));
 }
 
-// 查詢請假紀錄
+// 查詢役男夜假
 function fetchLeaveRecords() {
     let selectedUser = document.getElementById("leaveRecords").value;
     if (!selectedUser) return;
@@ -268,41 +268,29 @@ function fetchLeaveRecords() {
             let tableBody = document.getElementById("recordsTableBody");
             tableBody.innerHTML = "";  // 清空表格內容
 
-            data.records.forEach(row => {
+            data.records.forEach((row, index) => {
                 let tr = document.createElement("tr");
                 row.forEach(cell => {
                     let td = document.createElement("td");
                     td.textContent = cell;
                     tr.appendChild(td);
                 });
+                // 加入刪除按鈕
+                let deleteTd = document.createElement("td");
+                let deleteBtn = document.createElement("button");
+                deleteBtn.textContent = "刪除";
+                deleteBtn.onclick = function () {
+                    deleteRecord(row, index, "night_timeoff");  // 把整筆資料傳過去
+                };
+                deleteTd.appendChild(deleteBtn);
+                tr.appendChild(deleteTd);
+
                 tableBody.appendChild(tr);
             });
         })
         .catch(error => console.error("Error:", error));
 }
 
-// function fetchAbsenceRecords() {
-//     let selectedUser = document.getElementById("absenceRecords").value;
-//     if (!selectedUser) return;
-
-//     fetch(`/get_absence_records?tab_name=${selectedUser}`)
-//         .then(response => response.json())
-//         .then(data => {
-//             let tableBody = document.getElementById("absencesTableBody");
-//             tableBody.innerHTML = "";  // 清空表格內容
-
-//             data.records.forEach(row => {
-//                 let tr = document.createElement("tr");
-//                 row.forEach(cell => {
-//                     let td = document.createElement("td");
-//                     td.textContent = cell;
-//                     tr.appendChild(td);
-//                 });
-//                 tableBody.appendChild(tr);
-//             });
-//         })
-//         .catch(error => console.error("Error:", error));
-// }
 
 // 查詢請假紀錄，並在每行加入刪除按鈕
 function fetchAbsenceRecords() {
@@ -328,7 +316,7 @@ function fetchAbsenceRecords() {
                 let deleteBtn = document.createElement("button");
                 deleteBtn.textContent = "刪除";
                 deleteBtn.onclick = function () {
-                    deleteAbsenceRecord(row, index);  // 把整筆資料傳過去
+                    deleteRecord(row, index, "absence");  // 把整筆資料傳過去
                 };
                 deleteTd.appendChild(deleteBtn);
                 tr.appendChild(deleteTd);
@@ -358,54 +346,93 @@ function addAbsenceRecord() {
         Swal.fire("錯誤", "請填寫完整資訊", "error");
         return;
     }
-
-    fetch('/add_absence_record', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newRecord)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire("成功", "請假紀錄已新增", "success");
-            fetchAbsenceRecords();  // 重新載入請假紀錄
-        } else {
-            Swal.fire("錯誤", data.error, "error");
-        }
-    })
-    .catch(error => console.error("Error:", error));
-}
-
-// 刪除請假紀錄
-function deleteAbsenceRecord(rowData, rowIndex) {
-    let selectedUser = document.getElementById("absenceRecords").value;
-    if (!selectedUser) return;
-
     Swal.fire({
-        title: "確定要刪除這筆請假紀錄嗎？",
-        text: `請假人: ${selectedUser} 日期: ${rowData[0]}, 假別: ${rowData[1]}`,
+        title: `確定要新增這筆請假紀錄嗎？`,
+        text: `請假人: ${selectedUser} 日期: ${newRecord.issue_date}, 假別: ${newRecord.reason}`,
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "確定",
         cancelButtonText: "取消",
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch('/delete_absence_record', {
+            fetch('/add_absence_record', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tab_name: selectedUser, row_index: rowIndex, row_data: rowData })
+                body: JSON.stringify(newRecord)
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    Swal.fire("成功", "請假紀錄已刪除", "success");
+                    Swal.fire("成功", "請假紀錄已新增", "success");
                     fetchAbsenceRecords();  // 重新載入請假紀錄
                 } else {
-                    Swal.fire("錯誤", "刪除失敗", "error");
+                    Swal.fire("錯誤", data.error, "error");
                 }
             })
             .catch(error => console.error("Error:", error));
-        }
+        } 
+    });
+}
+
+// 刪除請假紀錄
+function deleteRecord(rowData, rowIndex, type) {
+    
+    let selectedUser, title, text;
+    if (type === "absence") {
+        selectedUser = document.getElementById("absenceRecords").value;
+        if (!selectedUser) return;
+        title = "確定要刪除這筆請假紀錄嗎？";
+        text = `請假人: ${selectedUser} 日期: ${rowData[0]}, 假別: ${rowData[1]}`;
+    } else {
+        selectedUser = document.getElementById("leaveRecords").value;
+        if (!selectedUser) return;
+        title = "確定要刪除這筆夜假嗎？";
+        text = `役男: ${selectedUser} 核發原因: ${rowData[0]},  核發日期: ${rowData[1]}`
+    }
+
+    Swal.fire({
+        title: title,
+        text: text,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "確定",
+        cancelButtonText: "取消",
+    }).then((result) => {
+        if (result.isConfirmed) {
+            if (type === "absence") {
+                fetch('/delete_absence_record', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tab_name: selectedUser, row_index: rowIndex, row_data: rowData })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire("成功", "請假紀錄已刪除", "success");
+                        fetchAbsenceRecords();  // 重新載入請假紀錄
+                    } else {
+                        Swal.fire("錯誤", "刪除失敗", "error");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+            } else {
+                fetch('/delete_night_timeoff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tab_name: selectedUser, row_index: rowIndex, row_data: rowData })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire("成功", "夜假已刪除", "success");
+                        fetchLeaveRecords();  // 重新載入請假紀錄
+                    } else {
+                        Swal.fire("錯誤", "刪除失敗", "error");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+            }
+        } 
     });
 }
 

@@ -7,6 +7,8 @@ from datetime import datetime
 import pytz
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 
 NIGHT_TIMEOFF_SHEET_KEY = "10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI"
 ABSENCE_RECORD_SHEET_KEY = "1TxClL3L0pDQAIoIidgJh7SP-BF4GaBD6KKfVKw0CLZQ"
@@ -19,12 +21,15 @@ taipei_timezone = pytz.timezone('Asia/Taipei')
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 credentials = service_account.Credentials.from_service_account_info(
-    service_account_info, scopes=SCOPES
-)
+    service_account_info, scopes=SCOPES)
 drive_service = build("drive", "v3", credentials=credentials)
 PARENT_FOLDER_ID = os.getenv("FOLDER_ID")
 
 app = Flask(__name__)
+
+mongo_client = MongoClient(os.getenv("MONGO_URI"), server_api=ServerApi('1'))
+db = mongo_client['absence-record']
+folders_col = db['folder']
 
 
 @app.route('/')
@@ -94,32 +99,54 @@ def get_users():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 def create_folder(parent_folder_id, folder_name):
     """Creates a folder with the given name inside the specified parent folder."""
-    file_metadata = {
-        "name": folder_name,
-        "mimeType": "application/vnd.google-apps.folder",
-        "parents": [parent_folder_id]
-    }
-    folder = drive_service.files().create(body=file_metadata, fields="id").execute()
-    print(f"✅ Folder '{folder_name}' created with ID: {folder['id']}")
-    return folder["id"]
+    folder_id = get_folder_id(parent_folder_id, folder_name)
+
+    if folder_id:
+        print(f"Folder '{folder_name}' already exists with ID: {folder_id}")
+    else:
+        file_metadata = {
+            "name": folder_name,
+            "mimeType": "application/vnd.google-apps.folder",
+            "parents": [parent_folder_id]
+        }
+        folder = drive_service.files().create(body=file_metadata,
+                                          fields="id").execute()
+        folder_id = folder["id"]
+
+    folders_col.update_one(
+        {"_id": folder_name},  # Search condition
+        {"$set": {
+            "_id": folder_name,
+            "folder_id": folder_id
+        }},  # Update or insert data
+        upsert=True  # Ensures insertion if not found
+    )
+    return folder_id
+
 
 def get_folder_id(parent_folder_id, folder_name):
     """Finds the folder ID by its name inside a given parent folder."""
-    query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and trashed=false"
-    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    query = f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and '{parent_folder_id}' in parents and trashed=false"
+    results = drive_service.files().list(q=query,
+                                         fields="files(id, name)").execute()
     folders = results.get("files", [])
 
     if not folders:
-        print(f"Folder '{folder_name}' not found in the specified parent folder.")
+        print(
+            f"Folder '{folder_name}' not found in the specified parent folder."
+        )
         return None
     return folders[0]["id"]  # Assuming folder names are unique
+
 
 def delete_all_files_in_folder(folder_id):
     """Deletes all files and subfolders inside a given folder."""
     query = f"'{folder_id}' in parents and trashed=false"
-    results = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
+    results = drive_service.files().list(
+        q=query, fields="files(id, name, mimeType)").execute()
     files = results.get("files", [])
 
     if not files:
@@ -131,15 +158,36 @@ def delete_all_files_in_folder(folder_id):
         print(f"Deleting: {file['name']} (ID: {file['id']})")
         drive_service.files().delete(fileId=file["id"]).execute()
 
+
 def delete_folder_and_contents(parent_folder_id, folder_name):
     """Deletes a folder along with all its contents."""
     folder_id = get_folder_id(parent_folder_id, folder_name)
     if folder_id:
         delete_all_files_in_folder(folder_id)  # Delete all files inside first
-        drive_service.files().delete(fileId=folder_id).execute()  # Then delete the folder itself
-        print(f"Folder '{folder_name}' and all its contents have been deleted.")
+        drive_service.files().delete(
+            fileId=folder_id).execute()  # Then delete the folder itself
+        print(
+            f"Folder '{folder_name}' and all its contents have been deleted.")
     else:
         print(f"Folder '{folder_name}' does not exist and cannot be deleted.")
+
+
+def create_worksheet(sheet_key, tab_name, headers):
+    sh = gc.open_by_key(sheet_key)
+
+    # 檢查是否已存在同名工作表
+    existing_sheets = [ws.title for ws in sh.worksheets()]
+    if tab_name in existing_sheets:
+        return -1
+
+    # 新增工作表（10 行 x 8 列）
+    worksheet = sh.add_worksheet(title=tab_name,
+                                 rows="1000",
+                                 cols=f"{len(headers)}")
+
+    # 設定標題
+    worksheet.insert_row(headers, 1)
+    return 1
 
 
 @app.route('/add_user', methods=['POST'])
@@ -152,38 +200,16 @@ def add_user():
 
     tab_name = f"{batch}T_{unit}_{name}"  # 新的工作表名稱
 
-    try:
-        sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
+    # try:
+    create_worksheet(NIGHT_TIMEOFF_SHEET_KEY, tab_name,
+                     ["核發原因", "核發日期", "有效期限", "使用日期"])
+    create_worksheet(ABSENCE_RECORD_SHEET_KEY, tab_name, ["請假日期", "假別"])
+    create_folder(PARENT_FOLDER_ID, tab_name)
 
-        # 檢查是否已存在同名工作表
-        existing_sheets = [ws.title for ws in sh.worksheets()]
-        if tab_name in existing_sheets:
-            return jsonify({'error': f'工作表 "{tab_name}" 已存在'}), 400
+    return jsonify({'message': f'成功新增役男: "{tab_name}"'})
 
-        # 新增工作表（10 行 x 8 列）
-        worksheet = sh.add_worksheet(title=tab_name, rows="1000", cols="4")
-
-        # 設定標題
-        headers = ["核發原因", "核發日期", "有效期限", "使用日期"]
-        worksheet.insert_row(headers, 1)
-
-        sh = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
-
-        existing_sheets = [ws.title for ws in sh.worksheets()]
-        if tab_name in existing_sheets:
-            return jsonify({'error': f'工作表 "{tab_name}" 已存在'}), 400
-
-        worksheet = sh.add_worksheet(title=tab_name, rows="1000", cols="2")
-
-        headers = ["請假日期", "假別"]
-        worksheet.insert_row(headers, 1)
-
-        create_folder(PARENT_FOLDER_ID, tab_name)
-
-        return jsonify({'message': f'成功新增役男: "{tab_name}"'})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # except Exception as e:
+    #     return jsonify({'error': str(e)}), 500
 
 
 @app.route('/delete_user', methods=['POST'])
@@ -262,6 +288,7 @@ def get_absence_records():
     except gspread.exceptions.WorksheetNotFound:
         return jsonify({"error": "找不到該役男的請假紀錄"})
 
+
 def update_absence_record(worksheet, date, reason):
     length = 0
     for record in worksheet.get_all_records():
@@ -274,13 +301,11 @@ def update_absence_record(worksheet, date, reason):
         data = []
     else:
         data = worksheet.get(f"A2:B{length+1}")
-    data.append([
-        date,
-        reason 
-    ])
-    sorted_data = sorted(
-        data, key=lambda row: datetime.strptime(row[0], '%Y/%m/%d'))
+    data.append([date, reason])
+    sorted_data = sorted(data,
+                         key=lambda row: datetime.strptime(row[0], '%Y/%m/%d'))
     worksheet.update(f"A2:B{length+2}", sorted_data)
+
 
 def get_night_timeoff_amount(worksheet):
     available_night_timeoff = []
@@ -288,6 +313,7 @@ def get_night_timeoff_amount(worksheet):
         if len(row["使用日期"]) == 0 and len(row["核發日期"]) != 0:
             available_night_timeoff.append(row["有效期限"])
     return available_night_timeoff
+
 
 def update_nigth_timeoff_sheet(worksheet, date):
     length = 0
@@ -300,9 +326,7 @@ def update_nigth_timeoff_sheet(worksheet, date):
         data = []
     else:
         data = worksheet.get(f"D2:D{length+1}")
-    data.append([
-        date
-    ])
+    data.append([date])
     sorted_data = []
     indexes = []
     for i, date in enumerate(data):
@@ -311,17 +335,18 @@ def update_nigth_timeoff_sheet(worksheet, date):
             indexes.append(i)
 
     sorted_data.sort(key=lambda row: datetime.strptime(row, '%Y/%m/%d'))
-    
+
     for i, date in enumerate(sorted_data):
         data[indexes[i]] = [date]
     worksheet.update(f"D2:D{length+2}", data)
+
 
 @app.route("/add_absence_record", methods=["POST"])
 def add_absence_record():
     data = request.json
     tab_name = data["tab_name"]
     date = datetime.strptime(data["issue_date"],
-                                 '%Y-%m-%d').strftime('%Y/%-m/%-d')
+                             '%Y-%m-%d').strftime('%Y/%-m/%-d')
     reason = data["reason"]
     try:
         if reason == "夜假":
@@ -330,7 +355,7 @@ def add_absence_record():
             if len(get_night_timeoff_amount(sheet)) == 0:
                 return jsonify({"success": False, "error": "役男無可用夜假"})
             update_nigth_timeoff_sheet(sheet, date)
-            
+
         spreadsheet = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
         sheet = spreadsheet.worksheet(tab_name)
         update_absence_record(sheet, date, reason)
@@ -385,21 +410,35 @@ def delete_absence_record():
         return jsonify({"success": False, "error": str(e)})
 
 
+@app.route("/delete_night_timeoff", methods=["POST"])
+def delete_night_timeoff():
+    data = request.json
+    tab_name = data["tab_name"]
+    row_index = int(
+        data["row_index"]) + 2
+
+    try:
+        spreadsheet = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
+        sheet = spreadsheet.worksheet(tab_name)
+        sheet.delete_rows(row_index)
+        return jsonify({"success": True})
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({"success": False, "error": str(e)})
+
+
 @app.route("/get_google_drive")
 def get_google_drive():
     folder_name = request.args.get("folder_name")
-    
+
     if not folder_name:
         return jsonify({"success": False, "error": "未輸入名稱"})
 
     try:
         # 在 Google Drive 的主資料夾內搜尋子資料夾
-        query = f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and '{PARENT_FOLDER_ID}' in parents"
-        results = drive_service.files().list(q=query, fields="files(id, name)").execute()
-        folders = results.get("files", [])
+        folder_id = get_folder_id(PARENT_FOLDER_ID, folder_name)
 
-        if folders:
-            folder_id = folders[0]["id"]
+        if folder_id:
             folder_link = f"https://drive.google.com/drive/folders/{folder_id}"
             return jsonify({"success": True, "folder_link": folder_link})
         else:
@@ -420,7 +459,8 @@ def search_drive_files():
     try:
         # 先找出與該名字相符的子資料夾
         query = f"'{PARENT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and name = '{name}'"
-        response = drive_service.files().list(q=query, fields="files(id, name)").execute()
+        response = drive_service.files().list(
+            q=query, fields="files(id, name)").execute()
         folders = response.get("files", [])
 
         if not folders:
@@ -430,7 +470,8 @@ def search_drive_files():
 
         # 搜尋該資料夾內的所有檔案
         file_query = f"'{folder_id}' in parents"
-        file_response = drive_service.files().list(q=file_query, fields="files(id, name)").execute()
+        file_response = drive_service.files().list(
+            q=file_query, fields="files(id, name)").execute()
         files = file_response.get("files", [])
 
         file_list = []
@@ -440,7 +481,11 @@ def search_drive_files():
             date_and_type = file_name.split(".")[0].split("_")
             view_link = f"https://drive.google.com/file/d/{file_id}/view"
 
-            file_list.append({"name": date_and_type[0], "type": date_and_type[1], "view_link": view_link})
+            file_list.append({
+                "name": date_and_type[0],
+                "type": date_and_type[1],
+                "view_link": view_link
+            })
 
         file_list.sort(key=lambda x: datetime.strptime(x["name"], '%Y-%m-%d'))
         return jsonify({"files": file_list})
@@ -448,6 +493,7 @@ def search_drive_files():
     except Exception as e:
         print("Error:", e)
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
