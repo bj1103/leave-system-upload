@@ -9,6 +9,7 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from googleapiclient.errors import HttpError
 
 NIGHT_TIMEOFF_SHEET_KEY = "10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI"
 ABSENCE_RECORD_SHEET_KEY = "1TxClL3L0pDQAIoIidgJh7SP-BF4GaBD6KKfVKw0CLZQ"
@@ -29,6 +30,7 @@ app = Flask(__name__)
 
 mongo_client = MongoClient(os.getenv("MONGO_URI"), server_api=ServerApi('1'))
 db = mongo_client['absence-record']
+users_col = db['user']
 folders_col = db['folder']
 
 
@@ -67,25 +69,25 @@ def import_data():
     if not data:
         return jsonify({'error': 'No data to import'})
 
-    # try:
-    # 連接到 Google 試算表
-    sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
-    worksheet = sh.worksheet("夜假總表")  # 確保此 tab 名稱一致
+    try:
+        # 連接到 Google 試算表
+        sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
+        worksheet = sh.worksheet("夜假總表")  # 確保此 tab 名稱一致
 
-    # 轉換數據為列表格式（按照指定欄位順序）
-    column_order = ["梯次", "姓名", "單位", "原因", "核發與否"]
-    new_rows = []
-    date = datetime.now(taipei_timezone).strftime('%Y/%-m/%-d')
-    for item in data:
-        new_rows.append([date] + [item.get(col, "") for col in column_order])
+        # 轉換數據為列表格式（按照指定欄位順序）
+        column_order = ["梯次", "姓名", "單位", "原因", "核發與否"]
+        new_rows = []
+        date = datetime.now(taipei_timezone).strftime('%Y/%-m/%-d')
+        for item in data:
+            new_rows.append([date] + [item.get(col, "") for col in column_order])
 
-    # Append 到試算表
-    worksheet.append_rows(new_rows)
+        # Append 到試算表
+        worksheet.append_rows(new_rows)
 
-    return jsonify({'message': '已成功匯入系統', 'imported_rows': len(new_rows)})
-
-    # except Exception as e:
-    #     return jsonify({'error': str(e)})
+        return jsonify({'message': '已成功匯入系統', 'imported_rows': len(new_rows)})
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({'error': str(e)})
 
 
 @app.route('/get_users', methods=['GET'])
@@ -97,6 +99,7 @@ def get_users():
                        if "T" in sheet.title]  # 只抓有 "T" 的 tab
         return jsonify({'users': sheet_names})
     except Exception as e:
+        print("Error:", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -115,6 +118,7 @@ def create_folder(parent_folder_id, folder_name):
         folder = drive_service.files().create(body=file_metadata,
                                           fields="id").execute()
         folder_id = folder["id"]
+        set_folder_permissions(folder_id)
 
     folders_col.update_one(
         {"_id": folder_name},  # Search condition
@@ -125,6 +129,19 @@ def create_folder(parent_folder_id, folder_name):
         upsert=True  # Ensures insertion if not found
     )
     return folder_id
+
+
+def set_folder_permissions(folder_id):
+    """Set folder permissions to allow anyone with the link to edit."""
+    try:
+        permission = {
+            'type': 'anyone',     # Anyone on the internet
+            'role': 'writer'      # Can edit
+        }
+        drive_service.permissions().create(fileId=folder_id, body=permission).execute()
+        print(f"Permissions updated: Anyone with the link can edit the folder {folder_id}")
+    except HttpError as error:
+        print(f"An error occurred while setting permissions: {error}")
 
 
 def get_folder_id(parent_folder_id, folder_name):
@@ -140,6 +157,14 @@ def get_folder_id(parent_folder_id, folder_name):
         )
         return None
     return folders[0]["id"]  # Assuming folder names are unique
+
+
+def get_folder_id_with_db(folder_name):
+    folder_info_from_db = folders_col.find_one({"_id": folder_name})
+    if folder_info_from_db:
+        return folder_info_from_db["folder_id"]
+    else:
+        return None
 
 
 def delete_all_files_in_folder(folder_id):
@@ -159,13 +184,12 @@ def delete_all_files_in_folder(folder_id):
         drive_service.files().delete(fileId=file["id"]).execute()
 
 
-def delete_folder_and_contents(parent_folder_id, folder_name):
-    """Deletes a folder along with all its contents."""
+def delete_folder(parent_folder_id, folder_name):
+    """Deletes a folder."""
     folder_id = get_folder_id(parent_folder_id, folder_name)
     if folder_id:
-        delete_all_files_in_folder(folder_id)  # Delete all files inside first
         drive_service.files().delete(
-            fileId=folder_id).execute()  # Then delete the folder itself
+            fileId=folder_id).execute()
         print(
             f"Folder '{folder_name}' and all its contents have been deleted.")
     else:
@@ -200,16 +224,16 @@ def add_user():
 
     tab_name = f"{batch}T_{unit}_{name}"  # 新的工作表名稱
 
-    # try:
-    create_worksheet(NIGHT_TIMEOFF_SHEET_KEY, tab_name,
-                     ["核發原因", "核發日期", "有效期限", "使用日期"])
-    create_worksheet(ABSENCE_RECORD_SHEET_KEY, tab_name, ["請假日期", "假別"])
-    create_folder(PARENT_FOLDER_ID, tab_name)
+    try:
+        create_worksheet(NIGHT_TIMEOFF_SHEET_KEY, tab_name,
+                        ["核發原因", "核發日期", "有效期限", "使用日期"])
+        create_worksheet(ABSENCE_RECORD_SHEET_KEY, tab_name, ["請假日期", "假別"])
+        create_folder(PARENT_FOLDER_ID, tab_name)
 
-    return jsonify({'message': f'成功新增役男: "{tab_name}"'})
-
-    # except Exception as e:
-    #     return jsonify({'error': str(e)}), 500
+        return jsonify({'message': f'成功新增役男: "{tab_name}"'})
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/delete_user', methods=['POST'])
@@ -220,7 +244,8 @@ def delete_user():
     if not tab_name:
         return jsonify({'error': '請選擇要刪除的役男'}), 400
 
-    batch, name = tab_name.split("T")
+    batch, unit, name = tab_name.split("_")
+    batch = batch.strip("T")
 
     try:
         sh = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
@@ -246,19 +271,25 @@ def delete_user():
         # 找到符合 梯次 (B 欄)、姓名 (C 欄)、單位 (D 欄) 的 row
         rows_to_delete = []
         for i, row in enumerate(records[1:], start=2):  # 從第二行開始
-            # if len(row) >= 4 and row[1] == batch and row[2] == name and row[3] == unit:
-            if len(row) >= 4 and row[1] == batch and row[2] == name:
+            if len(row) >= 4 and row[1] == batch and row[2] == name and row[3] == unit:
                 rows_to_delete.append(i)
 
         # 反向刪除，避免索引錯誤
         for row_index in reversed(rows_to_delete):
             night_leave_sheet.delete_rows(row_index)
 
-        delete_folder_and_contents(PARENT_FOLDER_ID, tab_name)
+        delete_folder(PARENT_FOLDER_ID, tab_name)
+        folders_col.delete_one({"_id": tab_name})
+        users_col.delete_one({
+            "name": name,
+            "session": batch,
+            "unit": unit
+        })
 
         return jsonify({'message': f'成功刪除役男: "{tab_name}"'})
 
     except Exception as e:
+        print("Error:", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -436,7 +467,7 @@ def get_google_drive():
 
     try:
         # 在 Google Drive 的主資料夾內搜尋子資料夾
-        folder_id = get_folder_id(PARENT_FOLDER_ID, folder_name)
+        folder_id = get_folder_id_with_db(folder_name)
 
         if folder_id:
             folder_link = f"https://drive.google.com/drive/folders/{folder_id}"
@@ -496,4 +527,4 @@ def search_drive_files():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5003)
