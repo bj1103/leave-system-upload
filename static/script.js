@@ -19,7 +19,58 @@ function switchTab(tabId) {
     if (tabId === "manual") {
         loadMarkdown();
     }
+
+    // if (tabId === "absence-summary") {
+    //     initializeDatePicker()
+    //     sendDateToBackend(); // 自動發送日期
+    // }
 }
+
+// function initializeDatePicker() {
+//     let datePicker = document.getElementById("datePicker");
+//     if (datePicker) {
+//         datePicker.value = getYesterdayDate();
+//     }
+// }
+
+// function getYesterdayDate() {
+//     let taiwanTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+//     taiwanTime.setDate(taiwanTime.getDate() - 1);
+//     return taiwanTime.toISOString().split('T')[0];  // 轉成 YYYY-MM-DD 格式
+// }
+
+// // 送出日期到後端
+// function sendDateToBackend() {
+//     let selectedDate = document.getElementById("datePicker").value;
+    
+//     fetch('/get_absence_on_date', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify({ date: selectedDate })
+//     })
+//     .then(response => response.json())
+//     .then(data => {
+//         let tableBody = document.getElementById("absenceSummaryTableBody");
+//         tableBody.innerHTML = "";  // 清空表格內容
+
+//         data.records.forEach(row => {
+//             let tr = document.createElement("tr");
+//             row.forEach(cell => {
+//                 let td = document.createElement("td");
+//                 td.textContent = cell;
+//                 tr.appendChild(td);
+//             });
+//             tableBody.appendChild(tr);
+//         });
+//     })
+//     .catch(error => console.error("Error:", error));
+// }
+
+// // 當日期改變時，自動送出新日期
+// document.addEventListener("DOMContentLoaded", function() {
+//     initializeDatePicker();  // 🔹 當網頁載入時，初始化 Date Picker
+//     // document.getElementById("datePicker").addEventListener("change", sendDateToBackend);
+// });
 
 function uploadFile() {
     let file = document.getElementById('fileInput').files[0];
@@ -381,17 +432,24 @@ function addAbsenceRecord() {
 // 刪除請假紀錄
 function deleteRecord(rowData, rowIndex, type) {
     
-    let selectedUser, title, text;
+    let selectedUser, title, text, reason;
     if (type === "absence") {
         selectedUser = document.getElementById("absenceRecords").value;
-        if (!selectedUser) return;
+        if (!selectedUser) {
+            Swal.fire("錯誤", "請選擇役男", "error");
+            return;
+        }
         title = "確定要刪除這筆請假紀錄嗎？";
         text = `請假人: ${selectedUser} 日期: ${rowData[0]}, 假別: ${rowData[1]}`;
     } else {
         selectedUser = document.getElementById("leaveRecords").value;
-        if (!selectedUser) return;
-        title = "確定要刪除這筆夜假嗎？";
-        text = `役男: ${selectedUser} 核發原因: ${rowData[0]},  核發日期: ${rowData[1]}`
+        reason = document.getElementById("deleteReason").value;
+        if (!selectedUser || !reason) {
+            Swal.fire("錯誤", "請選擇役男與填寫原因", "error");
+            return;
+        }
+        title = "確定要扣這筆夜假嗎？";
+        text = `役男: ${selectedUser} 扣夜假原因 ${reason}`
     }
 
     Swal.fire({
@@ -423,12 +481,12 @@ function deleteRecord(rowData, rowIndex, type) {
                 fetch('/delete_night_timeoff', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tab_name: selectedUser, row_index: rowIndex, row_data: rowData })
+                    body: JSON.stringify({ tab_name: selectedUser, row_index: rowIndex, row_data: rowData, reason: reason })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        Swal.fire("成功", "夜假已刪除", "success");
+                        Swal.fire("成功", "夜假已扣除", "success");
                         fetchLeaveRecords();  // 重新載入請假紀錄
                     } else {
                         Swal.fire("錯誤", "刪除失敗", "error");

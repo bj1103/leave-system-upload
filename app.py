@@ -39,6 +39,30 @@ def index():
     return render_template('index.html')
 
 
+@app.route("/get_absence_on_date", methods=["POST"])
+def get_absence_on_date():
+    data = request.json
+    selected_date = data.get("date")
+    year, month, day = selected_date.split('-')
+    selected_date = f"{int(year)}/{int(month)}/{int(day)}"
+    output = []
+    sh = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
+    try:
+        for sheet in sh.worksheets():
+            title = sheet.title
+            if "T" in title:
+                batch, unit, name = title.split("_")
+                batch = batch.strip("T")
+                records = sheet.get_all_records()
+                for record in records:
+                    if record["請假日期"] == selected_date:
+                        output.append([batch, unit, name, record["假別"]])
+        print(output)
+        return jsonify({"records": output})
+    except gspread.exceptions.WorksheetNotFound:
+        return jsonify({"error": "找不到該役男的夜假紀錄"})
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -447,11 +471,12 @@ def delete_night_timeoff():
     tab_name = data["tab_name"]
     row_index = int(
         data["row_index"]) + 2
+    reason = data["reason"]
 
     try:
         spreadsheet = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
         sheet = spreadsheet.worksheet(tab_name)
-        sheet.delete_rows(row_index)
+        sheet.update_cell(row_index, 4, f"夜假已被扣, 原因: {reason}")
         return jsonify({"success": True})
     except Exception as e:
         print("Error:", e)
