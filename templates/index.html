@@ -12,7 +12,7 @@
     <!-- 功能選單 -->
     <div class="tab-menu">
         <button class="tab-button active" onclick="switchTab('absence-summary')">1. 昨日請假役男</button>
-        <button class="tab-button" onclick="switchTab('leave')">2. 發夜假</button>
+        <button class="tab-button" onclick="switchTab('give-night-timeoff')">2. 發夜假</button>
         <button class="tab-button" onclick="switchTab('delete-night-timeoff')">3. 扣夜假</button>
         <button class="tab-button" onclick="switchTab('records')">4. 夜假統計</button>
         <button class="tab-button" onclick="switchTab('absences')">5. 修改請假紀錄</button>
@@ -23,8 +23,8 @@
 
     <div id="absence-summary" class="tab-content active">
         <h1>昨日請假役男</h1>
-        <!-- <input type="date" id="datePicker"> -->
-        <!-- <button onclick="sendDateToBackend()">查詢</button> -->
+        <input type="date" id="datePicker">
+        <!-- <button onclick="fetchAbsenceSummary()">查詢</button> -->
         <table border="1">
             <thead>				
                 <tr>
@@ -33,43 +33,13 @@
                     <th>姓名</th>
                     <th>假別</th>
                 </tr>
-                <tr>
-                    <td>259</td>
-                    <td>原民會</td>
-                    <td>張晉洋</td>
-                    <td>夜假</td>
-                </tr>
-                <tr>
-                    <td>259</td>
-                    <td>原民會</td>
-                    <td>林啟光</td>
-                    <td>夜假</td>
-                </tr>
-                <tr>
-                    <td>259</td>
-                    <td>原民會</td>
-                    <td>趙烱翔</td>
-                    <td>隔天補休</td>
-                </tr>
-                <tr>
-                    <td>259</td>
-                    <td>原民會</td>
-                    <td>黃麒軒</td>
-                    <td>隔天補休</td>
-                </tr>
-                <tr>
-                    <td>261</td>
-                    <td>社家署</td>
-                    <td>簡佑憲</td>
-                    <td>隔天補休</td>
-                </tr>
             </thead>
             <tbody id="absenceSummaryTableBody"></tbody>
         </table>
     </div>
 
     <!-- 發放夜假區塊 -->
-    <div id="leave" class="tab-content">
+    <div id="give-night-timeoff" class="tab-content">
         <h1>發放夜假</h1>
         <h2>上傳夜假</h2>
         <p>Excel欄位: 梯次  姓名  單位  原因  核發與否</p>
@@ -122,9 +92,9 @@
     <div id="delete-night-timeoff" class="tab-content">
         <h1>扣夜假</h1>
         <!-- <p><a href="https://docs.google.com/spreadsheets/d/10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI/edit?pli=1&gid=1528858576#gid=1528858576">原始資料</a></p> -->
-        <label for="leaveRecords">選擇役男：</label>
-        <select id="leaveRecords"></select>
-        <button onclick="fetchLeaveRecords()">查詢</button>
+        <label for="nightTimeoffRecords">選擇役男：</label>
+        <select id="nightTimeoffRecords"></select>
+        <button onclick="fetchNightTimeoffRecords()">查詢</button>
         <div><label>扣夜假原因：<input type="text" id="deleteReason"></label></div>
         <table border="1">
             <thead>
@@ -176,8 +146,8 @@
     <div id="proof" class="tab-content">
         <h1>查看役男補休及公差證明</h1>
         <p><a href="https://drive.google.com/drive/folders/19SIRo8MgecEsgpf63MZoytfKjSNgPLLd?usp=sharing">雲端硬碟</a></p>
-        <label for="leaveProofs">選擇役男：</label>
-        <select id="leaveProofs"></select>
+        <label for="absenceProofs">選擇役男：</label>
+        <select id="absenceProofs"></select>
         <button onclick="getGoogleDrive()">查看</button>
         <div id="searchResult"></div>
     </div>

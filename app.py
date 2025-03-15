@@ -10,9 +10,10 @@ from google.oauth2 import service_account
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from googleapiclient.errors import HttpError
+import mongo_util
 
 NIGHT_TIMEOFF_SHEET_KEY = "10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI"
-ABSENCE_RECORD_SHEET_KEY = "1TxClL3L0pDQAIoIidgJh7SP-BF4GaBD6KKfVKw0CLZQ"
+# ABSENCE_RECORD_SHEET_KEY = "1TxClL3L0pDQAIoIidgJh7SP-BF4GaBD6KKfVKw0CLZQ"
 service_account_info = json.loads(os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON'))
 service_account_info['private_key'] = service_account_info[
     'private_key'].replace("\\n", "\n")
@@ -32,6 +33,15 @@ mongo_client = MongoClient(os.getenv("MONGO_URI"), server_api=ServerApi('1'))
 db = mongo_client['absence-record']
 users_col = db['user']
 folders_col = db['folder']
+records_col = db['record']
+
+
+def user_id_to_info(user_id):
+    session, unit, name = user_id.split("_")
+    return session.strip("T"), unit, name
+
+def user_info_to_id(session, unit, name):
+    return f"{session}T_{unit}_{name}"
 
 
 @app.route('/')
@@ -42,22 +52,17 @@ def index():
 @app.route("/get_absence_on_date", methods=["POST"])
 def get_absence_on_date():
     data = request.json
-    selected_date = data.get("date")
-    year, month, day = selected_date.split('-')
-    selected_date = f"{int(year)}/{int(month)}/{int(day)}"
-    output = []
-    sh = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
+    date = taipei_timezone.localize(datetime.strptime(data["date"],
+                             '%Y-%m-%d'))
+    records = mongo_util.get_absence_records(
+        records_col,
+        absence_date=date.astimezone(pytz.utc)
+    )
     try:
-        for sheet in sh.worksheets():
-            title = sheet.title
-            if "T" in title:
-                batch, unit, name = title.split("_")
-                batch = batch.strip("T")
-                records = sheet.get_all_records()
-                for record in records:
-                    if record["請假日期"] == selected_date:
-                        output.append([batch, unit, name, record["假別"]])
-        print(output)
+        output = []
+        for record in records:
+            session, unit, name = user_id_to_info(record["userId"])
+            output.append([session, unit, name, record["type"]])
         return jsonify({"records": output})
     except gspread.exceptions.WorksheetNotFound:
         return jsonify({"error": "找不到該役男的夜假紀錄"})
@@ -251,7 +256,7 @@ def add_user():
     try:
         create_worksheet(NIGHT_TIMEOFF_SHEET_KEY, tab_name,
                         ["核發原因", "核發日期", "有效期限", "使用日期"])
-        create_worksheet(ABSENCE_RECORD_SHEET_KEY, tab_name, ["請假日期", "假別"])
+        # create_worksheet(ABSENCE_RECORD_SHEET_KEY, tab_name, ["請假日期", "假別"])
         create_folder(PARENT_FOLDER_ID, tab_name)
 
         return jsonify({'message': f'成功新增役男: "{tab_name}"'})
@@ -272,13 +277,13 @@ def delete_user():
     batch = batch.strip("T")
 
     try:
-        sh = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
+        # sh = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
 
-        existing_sheets = {ws.title: ws for ws in sh.worksheets()}
-        if tab_name in existing_sheets:
-            sh.del_worksheet(existing_sheets[tab_name])
-        else:
-            return jsonify({'error': f'找不到工作表 "{tab_name}"'}), 404
+        # existing_sheets = {ws.title: ws for ws in sh.worksheets()}
+        # if tab_name in existing_sheets:
+        #     sh.del_worksheet(existing_sheets[tab_name])
+        # else:
+        #     return jsonify({'error': f'找不到工作表 "{tab_name}"'}), 404
 
         sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
 
@@ -289,8 +294,8 @@ def delete_user():
             return jsonify({'error': f'找不到工作表 "{tab_name}"'}), 404
 
         # 讀取 "夜假總表"
-        night_leave_sheet = sh.worksheet("夜假總表")
-        records = night_leave_sheet.get_all_values()
+        night_timeoff_sheet = sh.worksheet("夜假總表")
+        records = night_timeoff_sheet.get_all_values()
 
         # 找到符合 梯次 (B 欄)、姓名 (C 欄)、單位 (D 欄) 的 row
         rows_to_delete = []
@@ -300,7 +305,7 @@ def delete_user():
 
         # 反向刪除，避免索引錯誤
         for row_index in reversed(rows_to_delete):
-            night_leave_sheet.delete_rows(row_index)
+            night_timeoff_sheet.delete_rows(row_index)
 
         delete_folder(PARENT_FOLDER_ID, tab_name)
         folders_col.delete_one({"_id": tab_name})
@@ -319,7 +324,7 @@ def delete_user():
 
 # 獲取夜假紀錄
 @app.route("/get_tab_records")
-def get_leave_records():
+def get_tab_records():
     tab_name = request.args.get("tab_name")
     sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
     try:
@@ -335,13 +340,18 @@ def get_leave_records():
 @app.route("/get_absence_records")
 def get_absence_records():
     tab_name = request.args.get("tab_name")
-    sh = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
-    try:
-        sheet = sh.worksheet(tab_name)
-        all_records = sheet.get_all_values()[1:]  # 排除第一行標題
-        return jsonify({"records": all_records})
-    except gspread.exceptions.WorksheetNotFound:
-        return jsonify({"error": "找不到該役男的請假紀錄"})
+    records = mongo_util.get_absence_records(
+        records_col,
+        user_id=tab_name
+    )
+    records = list(records)
+    records.sort(key=lambda x: x["date"])
+    
+    output = []
+    for record in records:
+        date = pytz.utc.localize(record["date"]).astimezone(taipei_timezone)
+        output.append([date.strftime('%Y/%-m/%-d'), record["type"]])
+    return jsonify({"records": output})
 
 
 def update_absence_record(worksheet, date, reason):
@@ -400,8 +410,9 @@ def update_nigth_timeoff_sheet(worksheet, date):
 def add_absence_record():
     data = request.json
     tab_name = data["tab_name"]
-    date = datetime.strptime(data["issue_date"],
-                             '%Y-%m-%d').strftime('%Y/%-m/%-d')
+    date = taipei_timezone.localize(datetime.strptime(data["issue_date"],
+                             '%Y-%m-%d'))
+
     reason = data["reason"]
     try:
         if reason == "夜假":
@@ -409,11 +420,14 @@ def add_absence_record():
             sheet = sh.worksheet(tab_name)
             if len(get_night_timeoff_amount(sheet)) == 0:
                 return jsonify({"success": False, "error": "役男無可用夜假"})
-            update_nigth_timeoff_sheet(sheet, date)
+            update_nigth_timeoff_sheet(sheet, date.strftime('%Y/%-m/%-d'))
 
-        spreadsheet = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
-        sheet = spreadsheet.worksheet(tab_name)
-        update_absence_record(sheet, date, reason)
+        mongo_util.add_absence_record(
+            records_col,
+            absence_date=date.astimezone(pytz.utc),
+            absence_type=reason,
+            user_id=tab_name
+        )
 
         return jsonify({"success": True})
     except Exception as e:
@@ -425,16 +439,19 @@ def add_absence_record():
 def delete_absence_record():
     data = request.json
     tab_name = data["tab_name"]
-    row_index = int(
-        data["row_index"]) + 2  # Google Sheet 的 row index 是從 1 開始，且要跳過標題
     row_data = data["row_data"]
     date = row_data[0]
     reason = row_data[1]
 
     try:
-        spreadsheet = gc.open_by_key(ABSENCE_RECORD_SHEET_KEY)
-        sheet = spreadsheet.worksheet(tab_name)
-        sheet.delete_rows(row_index)
+        mongo_util.delete_absence_record(
+            records_col,
+            absence_date=taipei_timezone.localize(
+                datetime.strptime(date,'%Y/%m/%d')
+            ).astimezone(pytz.utc),
+            absence_type=reason,
+            user_id=tab_name
+        )
 
         if reason == "夜假":
             length = 0

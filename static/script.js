@@ -26,51 +26,52 @@ function switchTab(tabId) {
     // }
 }
 
-// function initializeDatePicker() {
-//     let datePicker = document.getElementById("datePicker");
-//     if (datePicker) {
-//         datePicker.value = getYesterdayDate();
-//     }
-// }
+function initializeDatePicker() {
+    let datePicker = document.getElementById("datePicker");
+    if (datePicker) {
+        datePicker.value = getYesterdayDate();
+    }
+    fetchAbsenceSummary();
+}
 
-// function getYesterdayDate() {
-//     let taiwanTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
-//     taiwanTime.setDate(taiwanTime.getDate() - 1);
-//     return taiwanTime.toISOString().split('T')[0];  // 轉成 YYYY-MM-DD 格式
-// }
+function getYesterdayDate() {
+    let taiwanTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+    taiwanTime.setDate(taiwanTime.getDate() - 1);
+    return taiwanTime.toISOString().split('T')[0];  // 轉成 YYYY-MM-DD 格式
+}
 
-// // 送出日期到後端
-// function sendDateToBackend() {
-//     let selectedDate = document.getElementById("datePicker").value;
+// 送出日期到後端
+function fetchAbsenceSummary() {
+    let selectedDate = document.getElementById("datePicker").value;
     
-//     fetch('/get_absence_on_date', {
-//         method: 'POST',
-//         headers: { 'Content-Type': 'application/json' },
-//         body: JSON.stringify({ date: selectedDate })
-//     })
-//     .then(response => response.json())
-//     .then(data => {
-//         let tableBody = document.getElementById("absenceSummaryTableBody");
-//         tableBody.innerHTML = "";  // 清空表格內容
+    fetch('/get_absence_on_date', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: selectedDate })
+    })
+    .then(response => response.json())
+    .then(data => {
+        let tableBody = document.getElementById("absenceSummaryTableBody");
+        tableBody.innerHTML = "";  // 清空表格內容
 
-//         data.records.forEach(row => {
-//             let tr = document.createElement("tr");
-//             row.forEach(cell => {
-//                 let td = document.createElement("td");
-//                 td.textContent = cell;
-//                 tr.appendChild(td);
-//             });
-//             tableBody.appendChild(tr);
-//         });
-//     })
-//     .catch(error => console.error("Error:", error));
-// }
+        data.records.forEach(row => {
+            let tr = document.createElement("tr");
+            row.forEach(cell => {
+                let td = document.createElement("td");
+                td.textContent = cell;
+                tr.appendChild(td);
+            });
+            tableBody.appendChild(tr);
+        });
+    })
+    .catch(error => console.error("Error:", error));
+}
 
-// // 當日期改變時，自動送出新日期
-// document.addEventListener("DOMContentLoaded", function() {
-//     initializeDatePicker();  // 🔹 當網頁載入時，初始化 Date Picker
-//     // document.getElementById("datePicker").addEventListener("change", sendDateToBackend);
-// });
+// 當日期改變時，自動送出新日期
+document.addEventListener("DOMContentLoaded", function() {
+    initializeDatePicker();  // 🔹 當網頁載入時，初始化 Date Picker
+    document.getElementById("datePicker").addEventListener("change", fetchAbsenceSummary);
+});
 
 function uploadFile() {
     let file = document.getElementById('fileInput').files[0];
@@ -176,12 +177,12 @@ function loadUsers() {
         .then(response => response.json())
         .then(data => {
             let deleteSelect = document.getElementById("deleteUser");
-            let leaveSelect = document.getElementById("leaveRecords");
+            let nightTimeoffSelect = document.getElementById("nightTimeoffRecords");
             let absenceSelect = document.getElementById("absenceRecords");
-            let proofSelect = document.getElementById("leaveProofs")
+            let proofSelect = document.getElementById("absenceProofs")
 
             deleteSelect.innerHTML = "";
-            leaveSelect.innerHTML = "";
+            nightTimeoffSelect.innerHTML = "";
             absenceSelect.innerHTML = ""
             proofSelect.innerHTML = ""
 
@@ -194,7 +195,7 @@ function loadUsers() {
                 let option2 = document.createElement("option");
                 option2.value = user;
                 option2.textContent = user;
-                leaveSelect.appendChild(option2);
+                nightTimeoffSelect.appendChild(option2);
 
                 let option3 = document.createElement("option");
                 option3.value = user;
@@ -313,8 +314,8 @@ function fetchSummary() {
 }
 
 // 查詢役男夜假
-function fetchLeaveRecords() {
-    let selectedUser = document.getElementById("leaveRecords").value;
+function fetchNightTimeoffRecords() {
+    let selectedUser = document.getElementById("nightTimeoffRecords").value;
     if (!selectedUser) return;
 
     fetch(`/get_tab_records?tab_name=${selectedUser}`)
@@ -331,15 +332,16 @@ function fetchLeaveRecords() {
                     tr.appendChild(td);
                 });
                 // 加入刪除按鈕
-                let deleteTd = document.createElement("td");
-                let deleteBtn = document.createElement("button");
-                deleteBtn.textContent = "刪除";
-                deleteBtn.onclick = function () {
-                    deleteRecord(row, index, "night_timeoff");  // 把整筆資料傳過去
-                };
-                deleteTd.appendChild(deleteBtn);
-                tr.appendChild(deleteTd);
-
+                if (row[3].length === 0) {
+                    let deleteTd = document.createElement("td");
+                    let deleteBtn = document.createElement("button");
+                    deleteBtn.textContent = "刪除";
+                    deleteBtn.onclick = function () {
+                        deleteRecord(row, index, "night_timeoff");  // 把整筆資料傳過去
+                    };
+                    deleteTd.appendChild(deleteBtn);
+                    tr.appendChild(deleteTd);
+                }
                 tableBody.appendChild(tr);
             });
         })
@@ -442,7 +444,7 @@ function deleteRecord(rowData, rowIndex, type) {
         title = "確定要刪除這筆請假紀錄嗎？";
         text = `請假人: ${selectedUser} 日期: ${rowData[0]}, 假別: ${rowData[1]}`;
     } else {
-        selectedUser = document.getElementById("leaveRecords").value;
+        selectedUser = document.getElementById("nightTimeoffRecords").value;
         reason = document.getElementById("deleteReason").value;
         if (!selectedUser || !reason) {
             Swal.fire("錯誤", "請選擇役男與填寫原因", "error");
@@ -487,7 +489,7 @@ function deleteRecord(rowData, rowIndex, type) {
                 .then(data => {
                     if (data.success) {
                         Swal.fire("成功", "夜假已扣除", "success");
-                        fetchLeaveRecords();  // 重新載入請假紀錄
+                        fetchNightTimeoffRecords();  // 重新載入請假紀錄
                     } else {
                         Swal.fire("錯誤", "刪除失敗", "error");
                     }
@@ -501,7 +503,7 @@ function deleteRecord(rowData, rowIndex, type) {
 
 // 查找 Google Drive 資料夾
 function getGoogleDrive() {
-    let folderName = document.getElementById("leaveProofs").value;
+    let folderName = document.getElementById("absenceProofs").value;
     if (!folderName) {
         Swal.fire("錯誤", "請輸入名字", "error");
         return;
@@ -520,8 +522,8 @@ function getGoogleDrive() {
 }
 
 // 查詢 Google Drive 內的檔案
-function fetchLeaveProofs() {
-    let name = document.getElementById("leaveProofs").value;
+function fetchAbsenceProofs() {
+    let name = document.getElementById("absenceProofs").value;
     if (!name) {
         Swal.fire("錯誤", "請輸入要查詢的姓名", "error");
         return;
