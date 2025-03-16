@@ -321,13 +321,11 @@ function fetchSummary() {
 function fetchNightTimeoffRecords() {
     let selectedUser = document.getElementById("nightTimeoffRecords").value;
     if (!selectedUser) return;
-
+    let tableBody = document.getElementById("recordsTableBody");
+    tableBody.innerHTML = "";  // 清空表格內容
     fetch(`/get_tab_records?tab_name=${selectedUser}`)
         .then(response => response.json())
         .then(data => {
-            let tableBody = document.getElementById("recordsTableBody");
-            tableBody.innerHTML = "";  // 清空表格內容
-
             data.records.forEach((row, index) => {
                 let tr = document.createElement("tr");
                 row.forEach(cell => {
@@ -357,13 +355,12 @@ function fetchNightTimeoffRecords() {
 function fetchAbsenceRecords() {
     let selectedUser = document.getElementById("absenceRecords").value;
     if (!selectedUser) return;
+    let tableBody = document.getElementById("absencesTableBody");
+    tableBody.innerHTML = "";  // 清空表格內容
 
     fetch(`/get_absence_records?tab_name=${selectedUser}`)
         .then(response => response.json())
         .then(data => {
-            let tableBody = document.getElementById("absencesTableBody");
-            tableBody.innerHTML = "";  // 清空表格內容
-
             data.records.forEach((row, index) => {
                 let tr = document.createElement("tr");
                 row.forEach(cell => {
