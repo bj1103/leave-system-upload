@@ -71,3 +71,9 @@ def get_absence_users(record_col, absence_date=None, absence_type=None):
     ]
     return record_col.aggregate(pipeline)
 
+
+def get_all_users(col):
+    output = []
+    for user in col.find({}):
+        output.append(user['_id'])
+    return output

@@ -23,7 +23,8 @@
 
     <div id="absence-summary" class="tab-content active">
         <h1>昨日請假役男</h1>
-        <input type="date" id="datePicker">
+        <p>請注意 : 若役男於3/5請 *隔天補休*，代表3/5沒有回替中住</p>
+        <label>請假日期：<input type="date" id="datePicker"> </label>
         <!-- <button onclick="fetchAbsenceSummary()">查詢</button> -->
         <table border="1">
             <thead>				
@@ -42,7 +43,13 @@
     <div id="give-night-timeoff" class="tab-content">
         <h1>發放夜假</h1>
         <h2>上傳夜假</h2>
-        <p>Excel欄位: 梯次  姓名  單位  原因  核發與否</p>
+        <p>
+            請上傳紀錄本次要發放的夜假之Excel
+            <a href="https://drive.google.com/uc?export=download&id=1DSS5BaP6MBWnGNFbZuM8HyNIu2gR3vnH" download>(下載範例Excel)</a>
+        </p>
+        <p>
+            Excel欄位: 梯次、姓名、單位、原因、核發與否
+        </p>
         <input type="file" id="fileInput">
         <button onclick="uploadFile()">上傳</button>
 
@@ -59,7 +66,17 @@
         <h2>新增役男</h2>
         <label>姓名：<input type="text" id="add_name"></label>
         <label>梯次：<input type="text" id="add_batch"></label>
-        <label>單位：<input type="text" id="add_unit"></label>
+        <label>單位：
+            <input list="unit_options" id="add_unit" name=add_unit>
+            <datalist id="unit_options">
+                <option value="文化部">文化部</option>
+                <option value="社家署">社家署</option>
+                <option value="役政司">役政司</option>
+                <option value="資服司">資服司</option>
+                <option value="原民會">原民會</option>
+                <option value="僑委會">僑委會</option>
+            </datalist>
+        </label>
         <button onclick="confirmAddUser()">新增</button>
 
         <!-- 刪除役男 -->
@@ -133,8 +150,8 @@
         <h3>新增請假紀錄</h3>
         <label>日期：<input type="date" id="new_issue_date"></label>
         <label>假別：
-            <input list="options" id="new_reason" name=new_reason>
-            <datalist id="options">
+            <input list="absence_options" id="new_reason" name=new_reason>
+            <datalist id="absence_options">
                 <option value="夜假">夜假</option>
                 <option value="隔天補休">隔天補休</option>
                 <option value="公差">公差</option>

@@ -63,6 +63,7 @@ def get_absence_on_date():
         for record in records:
             session, unit, name = user_id_to_info(record["userId"])
             output.append([session, unit, name, record["type"]])
+        output.sort()
         return jsonify({"records": output})
     except gspread.exceptions.WorksheetNotFound:
         return jsonify({"error": "找不到該役男的夜假紀錄"})
@@ -122,10 +123,8 @@ def import_data():
 @app.route('/get_users', methods=['GET'])
 def get_users():
     try:
-        sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
-        sheets = sh.worksheets()
-        sheet_names = [sheet.title for sheet in sheets
-                       if "T" in sheet.title]  # 只抓有 "T" 的 tab
+        sheet_names = mongo_util.get_all_users(folders_col)
+        sheet_names.sort()
         return jsonify({'users': sheet_names})
     except Exception as e:
         print("Error:", e)
@@ -372,38 +371,42 @@ def update_absence_record(worksheet, date, reason):
     worksheet.update(f"A2:B{length+2}", sorted_data)
 
 
-def get_night_timeoff_amount(worksheet):
+def get_night_timeoff_amount(records):
     available_night_timeoff = []
-    for row in worksheet.get_all_records():
+    for row in records:
         if len(row["使用日期"]) == 0 and len(row["核發日期"]) != 0:
             available_night_timeoff.append(row["有效期限"])
     return available_night_timeoff
 
+def is_date_format(date_str, date_format="%Y/%m/%d"):
+    try:
+        datetime.strptime(date_str, date_format)
+        return True
+    except ValueError:
+        return False
 
-def update_nigth_timeoff_sheet(worksheet, date):
-    length = 0
-    for record in worksheet.get_all_records():
+def update_nigth_timeoff_sheet(worksheet, records, user_info):
+    data = []
+    for record in records:
         if len(record["使用日期"]) != 0:
-            length += 1
+            data.append([record["使用日期"]])
         else:
             break
-    if length == 0:
-        data = []
-    else:
-        data = worksheet.get(f"D2:D{length+1}")
-    data.append([date])
+    data.append([
+        user_info['absence_date'].strftime('%Y/%-m/%-d')
+    ])
     sorted_data = []
     indexes = []
     for i, date in enumerate(data):
-        if date[0] != "已過期":
+        if is_date_format(date[0]):
             sorted_data.append(date[0])
             indexes.append(i)
 
     sorted_data.sort(key=lambda row: datetime.strptime(row, '%Y/%m/%d'))
-
+    
     for i, date in enumerate(sorted_data):
         data[indexes[i]] = [date]
-    worksheet.update(f"D2:D{length+2}", data)
+    worksheet.update(f"D2:D{len(data)+2}", data)
 
 
 @app.route("/add_absence_record", methods=["POST"])
@@ -418,9 +421,10 @@ def add_absence_record():
         if reason == "夜假":
             sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
             sheet = sh.worksheet(tab_name)
-            if len(get_night_timeoff_amount(sheet)) == 0:
+            night_timeoff_records = sheet.get_all_records()
+            if len(get_night_timeoff_amount(night_timeoff_records)) == 0:
                 return jsonify({"success": False, "error": "役男無可用夜假"})
-            update_nigth_timeoff_sheet(sheet, date.strftime('%Y/%-m/%-d'))
+            update_nigth_timeoff_sheet(sheet, night_timeoff_records, date.strftime('%Y/%-m/%-d'))
 
         mongo_util.add_absence_record(
             records_col,
@@ -454,27 +458,27 @@ def delete_absence_record():
         )
 
         if reason == "夜假":
-            length = 0
             night_timeoff_sheet = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
             night_timeoff_worksheet = night_timeoff_sheet.worksheet(tab_name)
-            for record in night_timeoff_worksheet.get_all_records():
+            night_timeoff_records = night_timeoff_worksheet.get_all_records()
+            
+            data = []
+            for record in night_timeoff_records:
                 if len(record["使用日期"]) != 0:
-                    length += 1
+                    data.append([record["使用日期"]])
                 else:
                     break
-
-            data = night_timeoff_worksheet.get(f"D2:D{length+1}")
 
             previous = -1
             for i in range(len(data)):
                 if previous == -1 and data[i][0] == date:
                     data[i] = [""]
                     previous = i
-                elif previous != -1 and data[i][0] != "已過期":
+                elif previous != -1 and is_date_format(data[i][0]):
                     data[previous] = data[i]
                     data[i] = [""]
                     previous = i
-            night_timeoff_worksheet.update(f"D2:D{length+1}", data)
+            night_timeoff_worksheet.update(f"D2:D{len(data)+1}", data)
 
         return jsonify({"success": True})
     except Exception as e:

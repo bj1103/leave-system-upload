@@ -335,7 +335,7 @@ function fetchNightTimeoffRecords() {
                 if (row[3].length === 0) {
                     let deleteTd = document.createElement("td");
                     let deleteBtn = document.createElement("button");
-                    deleteBtn.textContent = "刪除";
+                    deleteBtn.textContent = "扣此筆夜假";
                     deleteBtn.onclick = function () {
                         deleteRecord(row, index, "night_timeoff");  // 把整筆資料傳過去
                     };
@@ -447,11 +447,11 @@ function deleteRecord(rowData, rowIndex, type) {
         selectedUser = document.getElementById("nightTimeoffRecords").value;
         reason = document.getElementById("deleteReason").value;
         if (!selectedUser || !reason) {
-            Swal.fire("錯誤", "請選擇役男與填寫原因", "error");
+            Swal.fire("錯誤", "請選擇役男與填寫扣夜假的原因", "error");
             return;
         }
         title = "確定要扣這筆夜假嗎？";
-        text = `役男: ${selectedUser} 扣夜假原因 ${reason}`
+        text = `役男: ${selectedUser} 扣夜假原因: ${reason}`
     }
 
     Swal.fire({
