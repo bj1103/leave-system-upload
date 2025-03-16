@@ -12,13 +12,13 @@ function switchTab(tabId) {
     // 顯示選擇的內容，並設定按鈕 active
     document.getElementById(tabId).classList.add('active');
     event.target.classList.add('active');
-    if (tabId === "records") {
-        fetchSummary();
-    }
+    // if (tabId === "records") {
+    //     fetchSummary();
+    // }
 
-    if (tabId === "manual") {
-        loadMarkdown();
-    }
+    // if (tabId === "manual") {
+    //     loadMarkdown();
+    // }
 
     // if (tabId === "absence-summary") {
     //     initializeDatePicker()
@@ -68,9 +68,18 @@ function fetchAbsenceSummary() {
 }
 
 // 當日期改變時，自動送出新日期
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", async function() {
     initializeDatePicker();  // 🔹 當網頁載入時，初始化 Date Picker
     document.getElementById("datePicker").addEventListener("change", fetchAbsenceSummary);
+
+    await loadUsers();
+    console.log(document.getElementById("nightTimeoffRecords").value)
+    fetchNightTimeoffRecords();
+    document.getElementById("nightTimeoffRecords").addEventListener("change", fetchNightTimeoffRecords);
+    fetchAbsenceRecords();
+    document.getElementById("absenceRecords").addEventListener("change", fetchAbsenceRecords);
+    fetchSummary();
+    loadMarkdown();
 });
 
 function uploadFile() {
@@ -172,43 +181,38 @@ function importData() {
 }
 
 // 取得役男列表並填入下拉式選單
-function loadUsers() {
-    fetch('/get_users')
-        .then(response => response.json())
-        .then(data => {
-            let deleteSelect = document.getElementById("deleteUser");
-            let nightTimeoffSelect = document.getElementById("nightTimeoffRecords");
-            let absenceSelect = document.getElementById("absenceRecords");
-            let proofSelect = document.getElementById("absenceProofs")
+async function loadUsers() {
+    let response = await fetch('/get_users');
+    let data = await response.json();
 
-            deleteSelect.innerHTML = "";
-            nightTimeoffSelect.innerHTML = "";
-            absenceSelect.innerHTML = ""
-            proofSelect.innerHTML = ""
+    let selectElements = [
+        document.getElementById("deleteUser"),
+        document.getElementById("nightTimeoffRecords"),
+        document.getElementById("absenceRecords"),
+        document.getElementById("absenceProofs")
+    ];
 
-            data.users.forEach(user => {
-                let option1 = document.createElement("option");
-                option1.value = user;
-                option1.textContent = user;
-                deleteSelect.appendChild(option1);
+    // 清空所有 select
+    selectElements.forEach(select => select.innerHTML = "");
 
-                let option2 = document.createElement("option");
-                option2.value = user;
-                option2.textContent = user;
-                nightTimeoffSelect.appendChild(option2);
+    // 遍歷使用者並加到所有 select
+    data.users.forEach(user => {
+        selectElements.forEach(select => {
+            let option = document.createElement("option");
+            option.value = user;
+            option.textContent = user;
+            select.appendChild(option);
+        });
+    });
 
-                let option3 = document.createElement("option");
-                option3.value = user;
-                option3.textContent = user;
-                absenceSelect.appendChild(option3);
+    // 設定所有 select 預設選擇第一個選項
+    selectElements.forEach(select => {
+        if (select.options.length > 0) {
+            select.selectedIndex = 0;
+        }
+    });
 
-                let option4 = document.createElement("option");
-                option4.value = user;
-                option4.textContent = user;
-                proofSelect.appendChild(option4);
-            });
-        })
-        .catch(error => console.error("Error:", error));
+    return data;
 }
 
 // 確認新增役男
@@ -580,4 +584,4 @@ async function loadMarkdown() {
 }
 
 // 頁面加載時載入役男列表
-window.onload = loadUsers;
+// window.onload = loadUsers;

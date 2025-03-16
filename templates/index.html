@@ -41,7 +41,7 @@
 
     <!-- 發放夜假區塊 -->
     <div id="give-night-timeoff" class="tab-content">
-        <h1>發放夜假</h1>
+        <h1>發夜假</h1>
         <h2>上傳夜假</h2>
         <p>
             請上傳紀錄本次要發放的夜假之Excel
@@ -56,6 +56,46 @@
         <h2>Excel 內容</h2>
         <table border="1" id="dataTable"></table>
         <button id="importButton" onclick="importData()" style="display: none;">匯入系統</button>
+    </div>
+
+    <div id="delete-night-timeoff" class="tab-content">
+        <h1>扣夜假</h1>
+        <!-- <p><a href="https://docs.google.com/spreadsheets/d/10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI/edit?pli=1&gid=1528858576#gid=1528858576">原始資料</a></p> -->
+        <label for="nightTimeoffRecords">選擇役男：</label>
+        <select id="nightTimeoffRecords"></select>
+        <!-- <button onclick="fetchNightTimeoffRecords()">查詢</button> -->
+        <div><label>扣夜假原因：<input type="text" id="deleteReason"></label></div>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>核發原因</th>
+                    <th>核發日期</th>
+                    <th>有效期限</th>
+                    <th>使用日期</th>
+                    <th>操作</th> 
+                </tr>
+            </thead>
+            <tbody id="recordsTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="records" class="tab-content">
+        <h1>夜假統計</h1>
+        <p><a href="https://docs.google.com/spreadsheets/d/10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI/edit?pli=1&gid=848398097#gid=848398097">原始資料</a></p>
+        <table border="1">
+            <thead>				
+                <tr>
+                    <th>梯次</th>
+                    <th>單位</th>
+                    <th>姓名</th>
+                    <th>總夜假數</th>
+                    <th>已使用的夜假數</th>
+                    <th>剩餘夜假數</th>
+                    <th>已過期的夜假數</th>
+                </tr>
+            </thead>
+            <tbody id="summaryTableBody"></tbody>
+        </table>
     </div>
 
     <!-- 新增與刪除役男區塊 -->
@@ -86,46 +126,6 @@
         <button onclick="confirmDeleteUser()">刪除</button>
     </div>
 
-    <!-- 查看夜假區塊 -->
-    <div id="records" class="tab-content">
-        <h1>夜假統計</h1>
-        <p><a href="https://docs.google.com/spreadsheets/d/10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI/edit?pli=1&gid=848398097#gid=848398097">原始資料</a></p>
-        <table border="1">
-            <thead>				
-                <tr>
-                    <th>梯次</th>
-                    <th>單位</th>
-                    <th>姓名</th>
-                    <th>總夜假數</th>
-                    <th>已使用的夜假數</th>
-                    <th>剩餘夜假數</th>
-                    <th>已過期的夜假數</th>
-                </tr>
-            </thead>
-            <tbody id="summaryTableBody"></tbody>
-        </table>
-    </div>
-
-    <div id="delete-night-timeoff" class="tab-content">
-        <h1>扣夜假</h1>
-        <!-- <p><a href="https://docs.google.com/spreadsheets/d/10o1RavT1RGKFccEdukG1HsEgD3FPOBOPMB6fQqTc_wI/edit?pli=1&gid=1528858576#gid=1528858576">原始資料</a></p> -->
-        <label for="nightTimeoffRecords">選擇役男：</label>
-        <select id="nightTimeoffRecords"></select>
-        <button onclick="fetchNightTimeoffRecords()">查詢</button>
-        <div><label>扣夜假原因：<input type="text" id="deleteReason"></label></div>
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>核發原因</th>
-                    <th>核發日期</th>
-                    <th>有效期限</th>
-                    <th>使用日期</th>
-                    <th>操作</th> 
-                </tr>
-            </thead>
-            <tbody id="recordsTableBody"></tbody>
-        </table>
-    </div>
 
     <!-- 查看請假紀錄區塊 -->
     <div id="absences" class="tab-content">
@@ -133,7 +133,7 @@
         <!-- <p><a href="https://docs.google.com/spreadsheets/d/1TxClL3L0pDQAIoIidgJh7SP-BF4GaBD6KKfVKw0CLZQ/edit?gid=1832299960#gid=1832299960">原始資料</a></p> -->
         <label for="absenceRecords">選擇役男：</label>
         <select id="absenceRecords"></select>
-        <button onclick="fetchAbsenceRecords()">查詢</button>
+        <!-- <button onclick="fetchAbsenceRecords()">查詢</button> -->
         <h3>刪除請假紀錄</h3>
         <table border="1">
             <thead>
@@ -160,6 +160,8 @@
         </label>
         <button onclick="addAbsenceRecord()">新增</button>
     </div>
+
+
     <div id="proof" class="tab-content">
         <h1>查看役男補休及公差證明</h1>
         <p><a href="https://drive.google.com/drive/folders/19SIRo8MgecEsgpf63MZoytfKjSNgPLLd?usp=sharing">雲端硬碟</a></p>
@@ -168,6 +170,7 @@
         <button onclick="getGoogleDrive()">查看</button>
         <div id="searchResult"></div>
     </div>
+
 
     <div id="manual" class="tab-content">
         <div id="markdown-content">載入中...</div>
