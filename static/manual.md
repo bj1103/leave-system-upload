@@ -9,7 +9,7 @@
 
 * 發夜假給役男
 
-  1. 在自己的電腦編輯Excel，格式需如下表 ([下載範例Excel](https://drive.google.com/uc?export=download&id=1DSS5BaP6MBWnGNFbZuM8HyNIu2gR3vnH))
+  1. 在自己的電腦編輯Excel，格式需如下表 ([下載範例Excel](https://drive.google.com/uc?export=download&id=10meLJgXgY4QyGuxc6pXEay2gNare89bF))
 
   | 梯次 | 姓名 | 單位 | 原因 | 核發與否 |
   | ---- | ---- | ---- | ---- | -------- |
