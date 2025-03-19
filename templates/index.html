@@ -16,8 +16,7 @@
         <button class="tab-button" onclick="switchTab('delete-night-timeoff')">3. 扣夜假</button>
         <button class="tab-button" onclick="switchTab('records')">4. 夜假統計</button>
         <button class="tab-button" onclick="switchTab('absences')">5. 修改請假紀錄</button>
-        <button class="tab-button" onclick="switchTab('proof')">6. 請假證明</button>
-        <button class="tab-button" onclick="switchTab('manage')">7. 新增與刪除役男</button>
+        <button class="tab-button" onclick="switchTab('manage')">6. 新增與刪除役男</button>
         <button class="tab-button" onclick="switchTab('manual')">7. 使用教學</button>
     </div>
 
@@ -135,16 +134,18 @@
         <select id="absenceRecords"></select>
         <!-- <button onclick="fetchAbsenceRecords()">查詢</button> -->
         <h3>刪除請假紀錄</h3>
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>日期</th>
-                    <th>假別</th>
-                    <th>刪除</th> <!-- 新增刪除按鈕 -->
-                </tr>
-            </thead>
-            <tbody id="absencesTableBody"></tbody>
-        </table>
+        <div class="table-content">
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>假別</th>
+                        <th>刪除</th> <!-- 新增刪除按鈕 -->
+                    </tr>
+                </thead>
+                <tbody id="absencesTableBody"></tbody>
+            </table>
+        </div>
 
         <!-- 新增請假紀錄區塊 -->
         <h3>新增請假紀錄</h3>
@@ -159,16 +160,6 @@
             </datalist>
         </label>
         <button onclick="addAbsenceRecord()">新增</button>
-    </div>
-
-
-    <div id="proof" class="tab-content">
-        <h1>查看役男補休及公差證明</h1>
-        <p><a href="https://drive.google.com/drive/folders/19SIRo8MgecEsgpf63MZoytfKjSNgPLLd?usp=sharing">雲端硬碟</a></p>
-        <label for="absenceProofs">選擇役男：</label>
-        <select id="absenceProofs"></select>
-        <button onclick="getGoogleDrive()">查看</button>
-        <div id="searchResult"></div>
     </div>
 
 

@@ -38,3 +38,49 @@
     background-color: #f2f2f2;
     text-align: left;
 }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    /* font-size: 1.2em; */
+    /* transform: scale(0.7); */
+    font-size: 24px;
+    margin: 0; /* 移除上下外邊距 */
+    border-spacing: 0;
+}
+
+th {
+    background-color: #aef;
+    color: #333;
+    padding: 5px;
+    text-align: center;
+}
+
+td, th {
+    border: 2px solid black;
+    padding: 5px;
+}
+
+p, div, button, input, select {
+    font-size: 20px; /* 設定字體大小 */
+    font-family: Arial, sans-serif; /* 設定字體 */
+}
+
+.container {
+    margin: 0;
+    padding: 0;
+}
+
+.table-content {
+    max-height: 400px; /* 設定表格區塊的最大高度 */
+    overflow-y: auto; /* 允許表格內部滾動 */
+    border: 1px solid black;
+}
+
+th {
+    position: sticky;
+    top: 0;
+    background-color: #aef; /* 確保標題列有背景色，避免與內容重疊 */
+    z-index: 10; /* 讓標題列顯示在最上層 */
+    padding: 10px;
+}

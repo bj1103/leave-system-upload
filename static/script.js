@@ -189,7 +189,7 @@ async function loadUsers() {
         document.getElementById("deleteUser"),
         document.getElementById("nightTimeoffRecords"),
         document.getElementById("absenceRecords"),
-        document.getElementById("absenceProofs")
+        // document.getElementById("absenceProofs")
     ];
 
     // 清空所有 select
