@@ -245,7 +245,7 @@ def create_worksheet(sheet_key, tab_name, headers):
 @app.route('/add_user', methods=['POST'])
 def add_user():
     data = request.json
-    name, batch, unit = data.get('姓名'), data.get('梯次'), data.get('單位')
+    name, batch, unit = data.get('姓名').strip(), data.get('梯次').strip(), data.get('單位').strip()
 
     if not name or not batch or not unit:
         return jsonify({'error': '缺少必要欄位'}), 400
