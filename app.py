@@ -385,16 +385,14 @@ def is_date_format(date_str, date_format="%Y/%m/%d"):
     except ValueError:
         return False
 
-def update_nigth_timeoff_sheet(worksheet, records, user_info):
+def update_nigth_timeoff_sheet(worksheet, records, absence_date):
     data = []
     for record in records:
         if len(record["使用日期"]) != 0:
             data.append([record["使用日期"]])
         else:
             break
-    data.append([
-        user_info['absence_date'].strftime('%Y/%-m/%-d')
-    ])
+    data.append([absence_date])
     sorted_data = []
     indexes = []
     for i, date in enumerate(data):
@@ -417,26 +415,26 @@ def add_absence_record():
                              '%Y-%m-%d'))
 
     reason = data["reason"]
-    try:
-        if reason == "夜假":
-            sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
-            sheet = sh.worksheet(tab_name)
-            night_timeoff_records = sheet.get_all_records()
-            if len(get_night_timeoff_amount(night_timeoff_records)) == 0:
-                return jsonify({"success": False, "error": "役男無可用夜假"})
-            update_nigth_timeoff_sheet(sheet, night_timeoff_records, date.strftime('%Y/%-m/%-d'))
+    # try:
+    if reason == "夜假":
+        sh = gc.open_by_key(NIGHT_TIMEOFF_SHEET_KEY)
+        sheet = sh.worksheet(tab_name)
+        night_timeoff_records = sheet.get_all_records()
+        if len(get_night_timeoff_amount(night_timeoff_records)) == 0:
+            return jsonify({"success": False, "error": "役男無可用夜假"})
+        update_nigth_timeoff_sheet(sheet, night_timeoff_records, date.strftime('%Y/%-m/%-d'))
 
-        mongo_util.add_absence_record(
-            records_col,
-            absence_date=date.astimezone(pytz.utc),
-            absence_type=reason,
-            user_id=tab_name
-        )
+    mongo_util.add_absence_record(
+        records_col,
+        absence_date=date.astimezone(pytz.utc),
+        absence_type=reason,
+        user_id=tab_name
+    )
 
-        return jsonify({"success": True})
-    except Exception as e:
-        print("Error:", e)
-        return jsonify({"success": False, "error": str(e)})
+    return jsonify({"success": True})
+    # except Exception as e:
+    #     print("Error:", e)
+    #     return jsonify({"success": False, "error": str(e)})
 
 
 @app.route("/delete_absence_record", methods=["POST"])
