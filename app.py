@@ -313,6 +313,7 @@ def delete_user():
             "session": batch,
             "unit": unit
         })
+        records_col.delete_many({"userId": tab_name})
 
         return jsonify({'message': f'成功刪除役男: "{tab_name}"'})
 
