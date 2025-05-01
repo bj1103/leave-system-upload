@@ -64,18 +64,20 @@
         <select id="nightTimeoffRecords"></select>
         <!-- <button onclick="fetchNightTimeoffRecords()">查詢</button> -->
         <div><label>扣夜假原因：<input type="text" id="deleteReason"></label></div>
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>核發原因</th>
-                    <th>核發日期</th>
-                    <th>有效期限</th>
-                    <th>使用日期</th>
-                    <th>操作</th> 
-                </tr>
-            </thead>
-            <tbody id="recordsTableBody"></tbody>
-        </table>
+        <div class="table-content">
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>核發原因</th>
+                        <th>核發日期</th>
+                        <th>有效期限</th>
+                        <th>使用日期</th>
+                        <th>操作</th> 
+                    </tr>
+                </thead>
+                <tbody id="recordsTableBody"></tbody>
+            </table>
+        </div>
     </div>
 
     <div id="records" class="tab-content">
